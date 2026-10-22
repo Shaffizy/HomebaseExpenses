@@ -1,0 +1,8 @@
+<!doctype html>
+<html><body style="font-family:Arial,sans-serif;color:#222;line-height:1.6">
+<h2>{% if test_mode %}Homebase expense workflow - TEST{% else %}Homebase Mortgage Bank{% endif %}</h2>
+<p>Expense <strong>{{ number }}</strong> has been <strong>{{ status|lower }}</strong> by {{ approver }}.</p>
+<p>Expense name: {{ category }}<br>Total: NGN {{ total }}</p>
+{% if url %}<p><a href="{{ url }}">View the decision and comments</a> (sign-in required)</p>{% else %}<p>Review expense {{ number }} in the Homebase application. An externally accessible app link is not configured for this test.</p>{% endif %}
+{% if test_mode %}<p>This is a development test sent by the configured test mailbox, not a production bank notification.</p>{% endif %}
+</body></html>

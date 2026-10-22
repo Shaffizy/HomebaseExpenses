@@ -1,0 +1,14 @@
+Expense {{ expense.expense_number }} — {{ expense.title }}
+
+{{ expense.organization.name }}: expense {{ expense.expense_number }} was {{ action }}.
+
+Triggered by: {{ actor_name }}
+{% if assigned %}Sent to (reviewer): {{ assigned.name }} ({{ assigned.email }}){% endif %}
+Status: {{ expense.status }}
+Amount: {{ expense.currency }} {{ expense.total }}
+Vendor: {{ expense.vendor_name }}
+
+Recipients of this message:
+{% for r in recipients %}- {{ r }}
+{% endfor %}
+View it in ExpenseManager for the full history.

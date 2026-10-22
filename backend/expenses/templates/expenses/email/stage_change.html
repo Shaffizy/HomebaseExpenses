@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #1e293b; line-height: 1.5;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 24px;">
+      <h2 style="margin: 0 0 4px; color: #0f172a;">
+        Expense {{ expense.expense_number }} — {{ expense.title }}
+      </h2>
+      <p style="margin: 0 0 16px; color: #64748b;">
+        {{ org.name }} · {{ action|capfirst }}
+      </p>
+
+      <table
+        cellpadding="6"
+        style="border-collapse: collapse; width: 100%; font-size: 14px; margin-bottom: 16px;"
+      >
+        <tr>
+          <td style="border: 1px solid #e2e8f0; background: #f8fafc; width: 140px;">
+            Triggered by
+          </td>
+          <td style="border: 1px solid #e2e8f0;">{{ actor_name }}</td>
+        </tr>
+        {% if assigned %}
+        <tr>
+          <td style="border: 1px solid #e2e8f0; background: #f8fafc;">Sent to</td>
+          <td style="border: 1px solid #e2e8f0;">
+            {{ assigned.name }} ({{ assigned.email }})
+          </td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="border: 1px solid #e2e8f0; background: #f8fafc;">Status</td>
+          <td style="border: 1px solid #e2e8f0;">{{ expense.status }}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #e2e8f0; background: #f8fafc;">Amount</td>
+          <td style="border: 1px solid #e2e8f0;">
+            {{ expense.currency }} {{ expense.total }}
+          </td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #e2e8f0; background: #f8fafc;">Vendor</td>
+          <td style="border: 1px solid #e2e8f0;">{{ expense.vendor_name }}</td>
+        </tr>
+      </table>
+
+      <p style="font-size: 13px; color: #94a3b8;">
+        Sent to:
+        {% for r in recipients %}{{ r }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      </p>
+    </div>
+  </body>
+</html>

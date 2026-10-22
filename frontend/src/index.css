@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1b1b1b;
+  --color-ink-soft: #333333;
+  --color-paper: #f7f8fa;
+  --color-linen: #f3f4f6;
+  --color-line: #e3e5e8;
+  --color-rust: #e6171d;
+  --color-rust-hover: #c51016;
+  --color-moss: #17734b;
+  --color-wine: #b91c1c;
+  --color-amber-ink: #854d0e;
+  --color-slate-ink: #262626;
+  --font-display: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+html { font-family: var(--font-body); background: var(--color-paper); color: var(--color-ink); -webkit-font-smoothing: antialiased; }
+body { margin: 0; }
+* { box-sizing: border-box; letter-spacing: 0; }
+::selection { background: #fee2e2; }
+:focus-visible { outline: 2px solid var(--color-rust); outline-offset: 3px; }
+button, input, textarea, select { font: inherit; }
+button:disabled { cursor: not-allowed; }
+
+.login-input { min-height: 48px; padding: 14px 16px; line-height: 1.5; }
