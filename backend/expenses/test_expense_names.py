@@ -26,7 +26,7 @@ def test_requester_creates_edits_and_submits_without_categories(setup):
     listed = client.get('/api/expenses/', {'search': 'New office keyboards'})
     assert listed.status_code == 200 and listed.data['count'] == 1
     submitted = client.post(url + 'submit/', {}, format='json')
-    assert submitted.status_code == 200 and submitted.data['status'] == 'SUBMITTED'
+    assert submitted.status_code == 200 and submitted.data['status'] == 'IN_REVIEW'
     assert client.patch(url, {'title': 'Late edit'}, format='json').status_code == 403
 
 

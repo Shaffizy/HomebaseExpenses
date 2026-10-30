@@ -13,12 +13,13 @@ class TransitionError(Exception):
         super().__init__(message)
 
 RULES = {
-    "submit": {Role.REQUESTER: {ExpenseStatus.DRAFT, ExpenseStatus.RETURNED}},
+    "submit": {role: {ExpenseStatus.DRAFT, ExpenseStatus.RETURNED} for role in (Role.REQUESTER, Role.REVIEWER)},
+    "review": {Role.REVIEWER: {ExpenseStatus.IN_REVIEW}},
     "approve": {Role.APPROVER: {ExpenseStatus.SUBMITTED}},
-    "return": {Role.APPROVER: {ExpenseStatus.SUBMITTED}},
-    "reject": {Role.APPROVER: {ExpenseStatus.SUBMITTED}},
+    "return": {Role.APPROVER: {ExpenseStatus.SUBMITTED}, Role.REVIEWER: {ExpenseStatus.IN_REVIEW}},
+    "reject": {Role.APPROVER: {ExpenseStatus.SUBMITTED}, Role.REVIEWER: {ExpenseStatus.IN_REVIEW}},
 }
-TARGET_STATUS = {"submit": ExpenseStatus.SUBMITTED, "approve": ExpenseStatus.APPROVED, "return": ExpenseStatus.RETURNED, "reject": ExpenseStatus.REJECTED}
+TARGET_STATUS = {"review": ExpenseStatus.SUBMITTED, "submit": ExpenseStatus.SUBMITTED, "approve": ExpenseStatus.APPROVED, "return": ExpenseStatus.RETURNED, "reject": ExpenseStatus.REJECTED}
 REQUIRES_COMMENT = {"return", "reject"}
 
 def current_stage_record(expense):
@@ -51,7 +52,7 @@ def transition(expense, user, action, comment=None):
         raise TransitionError("Your role cannot perform this action.", 403)
     if expense.status not in allowed:
         raise TransitionError(f"Cannot {action} an expense in {expense.status}.", 409)
-    if user.role == Role.REQUESTER and expense.created_by_id != user.pk:
+    if action == "submit" and expense.created_by_id != user.pk:
         raise TransitionError("Only the requester who created this expense can submit it.", 403)
     approver = _resolve_approver(expense)
     if user.role == Role.APPROVER and (approver is None or approver.pk != user.pk):
@@ -66,6 +67,15 @@ def transition(expense, user, action, comment=None):
         if approver is None:
             raise TransitionError("No active approver is configured.", 409)
         expense.assigned_approver = approver
+    if action != "submit" and expense.created_by_id == user.pk:
+        raise TransitionError("You cannot review or approve your own expense.", 403)
+    if action != "submit" and user.role == Role.REVIEWER and expense.assigned_reviewer_id != user.pk:
+        raise TransitionError("Only the assigned reviewer can act.", 403)
+    reviewer = None
+    if action == "submit" and user.role == Role.REQUESTER:
+        reviewer = User.objects.filter(organization_id=expense.organization_id, role=Role.REVIEWER, is_active=True).order_by("pk").first()
+        if reviewer is None:
+            raise TransitionError("No active reviewer is configured.", 409)
     reused = None
     if action in REQUIRES_COMMENT:
         if comment is not None and not isinstance(comment, str):
@@ -77,6 +87,17 @@ def transition(expense, user, action, comment=None):
             comment = reused.text
     expense._actor = user
     expense.status = TARGET_STATUS[action]
+    if action == "submit":
+        expense.assigned_reviewer = reviewer
+        expense.reviewed_by = None
+        expense.reviewed_at = None
+        expense.status = ExpenseStatus.IN_REVIEW if reviewer else ExpenseStatus.SUBMITTED
+    if action == "review":
+        if approver is None:
+            raise TransitionError("No active approver is configured.", 409)
+        expense.assigned_approver = approver
+        expense.reviewed_by = user
+        expense.reviewed_at = timezone.now()
     if action == "approve":
         signer = User.objects.select_for_update().get(pk=user.pk)
         if not signer.is_active or signer.role != Role.APPROVER or signer.is_staff:
@@ -84,7 +105,7 @@ def transition(expense, user, action, comment=None):
         expense.approved_by = user
         expense.approved_at = timezone.now()
         expense.approved_signature_data = signer.signature_data
-    expense.save(update_fields=["status", "updated_at", "assigned_approver", "approved_by", "approved_at", "approved_signature_data"])
+    expense.save(update_fields=["status", "updated_at", "assigned_reviewer", "reviewed_by", "reviewed_at", "assigned_approver", "approved_by", "approved_at", "approved_signature_data"])
     if action in REQUIRES_COMMENT and reused is None:
         stage = current_stage_record(expense)
         Comment.objects.create(expense=expense, author=user, text=comment.strip(), stage_history_id=stage.history_id)
@@ -96,7 +117,7 @@ def close_expense(expense, user):
     expense = Expense.objects.select_for_update().get(pk=expense.pk)
     if expense.organization_id != user.organization_id:
         raise TransitionError("Not found.", 404)
-    if user.role != Role.REQUESTER or user.is_staff or expense.created_by_id != user.pk:
+    if user.role not in (Role.REQUESTER, Role.REVIEWER) or user.is_staff or expense.created_by_id != user.pk:
         raise TransitionError("Only the expense's requester can close it.", 403)
     if expense.status not in CLOSEABLE_STATUSES:
         raise TransitionError("Cannot close this expense.", 409)
@@ -108,8 +129,10 @@ def close_expense(expense, user):
 def can_comment(user, expense):
     if not user.is_active or user.is_staff or expense.organization_id != user.organization_id:
         return False
-    if user.role == Role.REQUESTER:
-        return expense.created_by_id == user.pk and expense.status == ExpenseStatus.RETURNED
+    if expense.created_by_id == user.pk:
+        return user.role in (Role.REQUESTER, Role.REVIEWER) and expense.status == ExpenseStatus.RETURNED
+    if user.role == Role.REVIEWER:
+        return expense.assigned_reviewer_id == user.pk and expense.status == ExpenseStatus.IN_REVIEW
     if user.role == Role.APPROVER:
         approver = _resolve_approver(expense)
         return approver is not None and approver.pk == user.pk and expense.status == ExpenseStatus.SUBMITTED

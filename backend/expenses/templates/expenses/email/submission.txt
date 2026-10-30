@@ -1,14 +1,14 @@
 {% if test_mode %}Homebase expense workflow - TEST notification{% else %}Homebase Mortgage Bank - Expense Notification{% endif %}
 
 {% if confirmation %}Your expense {{ number }} was submitted successfully.
-It has been sent to {{ approver }} for approval.{% else %}{{ requester }} submitted expense {{ number }} for your approval.{% endif %}
+It has been sent to {{ approver }} for {{ stage }}.{% else %}{{ requester }} submitted expense {{ number }} for your {{ stage }}.{% endif %}
 
 Expense name: {{ category }}
 Department: {{ department }}
 Branch: {{ branch }}
 Total: NGN {{ total }}
-Status: Submitted
+Status: {{ status }}
 
-{% if url %}Open expense (sign-in required): {{ url }}{% else %}Review expense {{ number }} in the Homebase application. An externally accessible app link is not configured for this test.{% endif %}
+{% if url %}Open expense (sign-in required): {{ url }}{% else %}Review expense {{ number }} in the Homebase application. Please sign in to the Homebase Expenses application to view the request.{% endif %}
 
 {% if test_mode %}This is a development test sent by the configured test mailbox, not a production bank notification.{% else %}This is an automated Homebase expense notification.{% endif %}

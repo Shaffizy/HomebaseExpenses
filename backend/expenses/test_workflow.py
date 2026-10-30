@@ -81,11 +81,13 @@ def test_comment_reuse_and_approval_fields(setup):
     expense.refresh_from_db()
     assert expense.approved_by is None and expense.approved_at is None and expense.status == "DRAFT"
     owner.post(f"/api/expenses/{expense.pk}/submit/", {}, format="json")
+    assert api(users["REVIEWER"]).post(f"/api/expenses/{expense.pk}/review/", {}, format="json").status_code == 200
     assert approver.post(f"/api/expenses/{expense.pk}/return/", {}, format="json").status_code == 400
     assert approver.post(f"/api/expenses/{expense.pk}/comments/", {"text": "Attach the receipt"}, format="json").status_code == 201
     assert approver.post(f"/api/expenses/{expense.pk}/return/", {}, format="json").status_code == 200
     assert expense.comments.count() == 1
     owner.post(f"/api/expenses/{expense.pk}/submit/", {}, format="json")
+    assert api(users["REVIEWER"]).post(f"/api/expenses/{expense.pk}/review/", {}, format="json").status_code == 200
     assert approver.post(f"/api/expenses/{expense.pk}/return/", {}, format="json").status_code == 400
     assert approver.post(f"/api/expenses/{expense.pk}/approve/", {}, format="json").status_code == 200
     expense.refresh_from_db()

@@ -8,6 +8,7 @@ from django.utils import timezone
 
 class Role(models.TextChoices):
     REQUESTER = "REQUESTER", "Requester"
+    REVIEWER = "REVIEWER", "Reviewer"
     APPROVER = "APPROVER", "Approver"
     ADMIN = "ADMIN", "Admin"
 
@@ -33,7 +34,7 @@ class User(AbstractUser):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["organization"], condition=models.Q(role="APPROVER", is_active=True), name="one_active_approver_per_org"),
-            models.CheckConstraint(condition=models.Q(role__in=["REQUESTER", "APPROVER", "ADMIN"]), name="valid_expense_user_role"),
+            models.CheckConstraint(condition=models.Q(role__in=["REQUESTER", "REVIEWER", "APPROVER", "ADMIN"]), name="valid_expense_user_role"),
         ]
 
     def save(self, *args, **kwargs):

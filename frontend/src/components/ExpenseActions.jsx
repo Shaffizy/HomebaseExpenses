@@ -6,6 +6,7 @@ import { approveExpense, closeExpense, errorMessage, rejectExpense, returnExpens
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "./ui";
 const ACTIONS = {
+    review: { key: "review", label: "Forward for approval", confirmTitle: "Complete review", style: "bg-[var(--color-moss)] text-white", needsComment: false },
     approve: {
         key: "approve",
         label: "Approve ✓",
@@ -29,11 +30,13 @@ const ACTIONS = {
     },
 };
 const SUCCESS_MESSAGES = {
+    review: "Expense reviewed and forwarded for approval",
     approve: "Expense approved",
     return: "Expense returned to the requester",
     reject: "Expense rejected",
 };
 export function availableActions(role, status) {
+    if (role === "REVIEWER" && status === "IN_REVIEW") return [ACTIONS.review, ACTIONS.reject, ACTIONS.return];
     if (role === "APPROVER" && status === "SUBMITTED")
         return [ACTIONS.approve, ACTIONS.reject, ACTIONS.return];
     return [];
@@ -64,6 +67,8 @@ export function ExpenseActions({ expense, role }) {
     const mutation = useMutation({
         mutationFn: ({ action, comment }) => {
             switch (action.key) {
+                case "review":
+                    return api.post(`/expenses/${expense.id}/review/`).then(({ data }) => data);
                 case "approve":
                     return approveExpense(expense.id);
                 case "return":
@@ -80,8 +85,8 @@ export function ExpenseActions({ expense, role }) {
         },
         onError: (err) => toast.error(errorMessage(err)),
     });
-    const actions = availableActions(role, expense.status);
-    const canClose = role === "REQUESTER" &&
+    const actions = expense.created_by === user?.id ? [] : availableActions(role, expense.status);
+    const canClose = ["REQUESTER", "REVIEWER"].includes(role) &&
         expense.created_by === user?.id &&
         (expense.status === "DRAFT" || expense.status === "RETURNED" || expense.status === "REJECTED");
     if (actions.length === 0 && !canClose)

@@ -16,7 +16,8 @@ from .evidence import evidence_path, evidence_storage
 
 class ExpenseStatus(models.TextChoices):
     DRAFT = "DRAFT", "Draft"
-    SUBMITTED = "SUBMITTED", "Submitted"
+    IN_REVIEW = "IN_REVIEW", "Awaiting review"
+    SUBMITTED = "SUBMITTED", "Awaiting approval"
     APPROVED = "APPROVED", "Approved"
     RETURNED = "RETURNED", "Returned"
     REJECTED = "REJECTED", "Rejected"
@@ -77,6 +78,9 @@ class Expense(models.Model):
     status = models.CharField(
         max_length=20, choices=ExpenseStatus.choices, default=ExpenseStatus.DRAFT
     )
+    assigned_reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="review_expenses")
+    reviewed_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name="expenses_reviewed")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     assigned_approver = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

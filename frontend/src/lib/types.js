@@ -1,6 +1,7 @@
 export const STATUS_LABELS = {
     DRAFT: "Draft",
-    SUBMITTED: "Submitted",
+    IN_REVIEW: "Awaiting review",
+    SUBMITTED: "Awaiting approval",
     APPROVED: "Approved",
     RETURNED: "Returned",
     REJECTED: "Rejected",
@@ -8,6 +9,7 @@ export const STATUS_LABELS = {
 };
 export const ALL_STATUSES = [
     "DRAFT",
+    "IN_REVIEW",
     "SUBMITTED",
     "APPROVED",
     "RETURNED",

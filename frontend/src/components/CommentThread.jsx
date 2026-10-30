@@ -8,7 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 export function canComment(user, expense) {
     if (!user)
         return false;
-    return (user.role === "REQUESTER" && user.id === expense.created_by && expense.status === "RETURNED") ||
+    return (["REQUESTER", "REVIEWER"].includes(user.role) && user.id === expense.created_by && expense.status === "RETURNED") ||
+        (user.role === "REVIEWER" && expense.created_by !== user.id && expense.assigned_reviewer === user.id && expense.status === "IN_REVIEW") ||
         (user.role === "APPROVER" && expense.status === "SUBMITTED");
 }
 export function CommentThread({ expense }) {
@@ -60,7 +61,7 @@ export function CommentThread({ expense }) {
       <form onSubmit={handlePost} className="mt-5">
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} disabled={!allowed || mutation.isPending} placeholder={allowed
             ? "Write a comment…"
-            : user?.role === "REQUESTER"
+            : ["REQUESTER", "REVIEWER"].includes(user?.role)
                 ? "You can reply after the expense is returned to you."
                 : "Comments are unavailable at this stage."} className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3.5 py-2.5 text-sm placeholder:text-black/30 focus:border-[var(--color-rust)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rust)]/15 disabled:bg-[var(--color-linen)] disabled:text-black/30"/>
         <div className="mt-3 flex justify-end">

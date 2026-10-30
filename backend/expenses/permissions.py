@@ -5,12 +5,12 @@ from expenses.models import ExpenseStatus
 class ExpenseAccessPermission(BasePermission):
     def has_permission(self, request, view):
         if view.action == "create":
-            return request.user.role == Role.REQUESTER and not request.user.is_staff
+            return request.user.role in (Role.REQUESTER, Role.REVIEWER) and not request.user.is_staff
         return True
 
     def has_object_permission(self, request, view, obj):
         if view.action in ("update", "partial_update", "destroy"):
-            return (request.user.role == Role.REQUESTER and not request.user.is_staff and obj.created_by_id == request.user.pk and obj.status in (ExpenseStatus.DRAFT, ExpenseStatus.RETURNED) and obj.organization_id == request.user.organization_id)
+            return (request.user.role in (Role.REQUESTER, Role.REVIEWER) and not request.user.is_staff and obj.created_by_id == request.user.pk and obj.status in (ExpenseStatus.DRAFT, ExpenseStatus.RETURNED) and obj.organization_id == request.user.organization_id)
         return True
 
 class CategoryAccessPermission(BasePermission):

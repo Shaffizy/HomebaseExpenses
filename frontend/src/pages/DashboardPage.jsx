@@ -9,6 +9,8 @@ function actionStatusesFor(role) {
     switch (role) {
         case "REQUESTER":
             return ["DRAFT", "RETURNED"];
+        case "REVIEWER":
+            return ["IN_REVIEW", "DRAFT", "RETURNED"];
         case "APPROVER":
             return ["SUBMITTED"];
         default:
@@ -17,11 +19,13 @@ function actionStatusesFor(role) {
 }
 const ACTION_LIST_LABEL = {
     REQUESTER: "Your drafts & returns",
+    REVIEWER: "Your reviews, drafts and returns",
     APPROVER: "Waiting for your approval",
     ADMIN: "All active expenses",
 };
 const STATUS_ACCENT = {
     DRAFT: "bg-[#a3a3a3]",
+    IN_REVIEW: "bg-[#e0e7ff] text-[#3730a3]",
     SUBMITTED: "bg-[#60a5fa]",
     APPROVED: "bg-[#4ade80]",
     RETURNED: "bg-[#fbbf24]",

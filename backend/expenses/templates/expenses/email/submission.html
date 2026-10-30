@@ -2,10 +2,10 @@
 <html><body style="font-family:Arial,sans-serif;color:#222;line-height:1.6">
 <h2>{% if test_mode %}Homebase expense workflow - TEST{% else %}Homebase Mortgage Bank{% endif %}</h2>
 {% if confirmation %}<p>Your expense <strong>{{ number }}</strong> was submitted successfully.</p>
-<p>It has been sent to {{ approver }} for approval.</p>
-{% else %}<p>{{ requester }} submitted expense <strong>{{ number }}</strong> for your approval.</p>{% endif %}
+<p>It has been sent to {{ approver }} for {{ stage }}.</p>
+{% else %}<p>{{ requester }} submitted expense <strong>{{ number }}</strong> for your {{ stage }}.</p>{% endif %}
 <p>Expense name: {{ category }}<br>Department: {{ department }}<br>Branch: {{ branch }}<br>
-Total: NGN {{ total }}<br>Status: Submitted</p>
-{% if url %}<p><a href="{{ url }}">View expense</a> (sign-in required)</p>{% else %}<p>Review expense {{ number }} in the Homebase application. An externally accessible app link is not configured for this test.</p>{% endif %}
+Total: NGN {{ total }}<br>Status: {{ status }}</p>
+{% if url %}<p><a href="{{ url }}">View expense</a> (sign-in required)</p>{% else %}<p>Review expense {{ number }} in the Homebase application. Please sign in to the Homebase Expenses application to view the request.</p>{% endif %}
 <p>{% if test_mode %}This is a development test sent by the configured test mailbox, not a production bank notification.{% else %}This is an automated Homebase expense notification.{% endif %}</p>
 </body></html>

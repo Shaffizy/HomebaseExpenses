@@ -1,8 +1,8 @@
 {% if test_mode %}Homebase expense workflow - TEST update{% else %}Homebase Mortgage Bank - Expense Update{% endif %}
 
-Expense {{ number }} has been {{ status|lower }} by {{ approver }}.
+Expense {{ number }} has been {{ status|lower }}.
 Expense name: {{ category }}
 Total: NGN {{ total }}
 
-{% if url %}View the decision and comments (sign-in required): {{ url }}{% else %}Review expense {{ number }} in the Homebase application. An externally accessible app link is not configured for this test.{% endif %}
+{% if url %}View the decision and comments (sign-in required): {{ url }}{% else %}Review expense {{ number }} in the Homebase application. Please sign in to the Homebase Expenses application to view the request.{% endif %}
 {% if test_mode %}This is a development test sent by the configured test mailbox, not a production bank notification.{% endif %}

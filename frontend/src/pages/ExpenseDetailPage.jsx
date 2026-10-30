@@ -64,7 +64,7 @@ export function ExpenseDetailPage() {
         return (<ErrorState message={errorMessage(expenseQuery.error) ?? "Expense not found"} onRetry={() => expenseQuery.refetch()}/>);
     }
     const expense = expenseQuery.data;
-    const isExpenseer = user?.role === "REQUESTER";
+    const isExpenseer = ["REQUESTER", "REVIEWER"].includes(user?.role);
     const isOwner = user?.id === expense.created_by;
     const isEditable = isExpenseer && isOwner && EDITABLE_STATUSES.includes(expense.status);
     const showForm = isEditable && editing;

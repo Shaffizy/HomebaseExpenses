@@ -19,15 +19,16 @@ logger = logging.getLogger(__name__)
 def public_expense_url(expense):
     base = settings.FRONTEND_URL.rstrip('/')
     try:
-        URLValidator(schemes=["https"])(base)
+        URLValidator(schemes=["http", "https"])(base)
         parsed = urlsplit(base)
         host = (parsed.hostname or "").lower().rstrip('.')
-        if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        if parsed.username or parsed.password or parsed.query or parsed.fragment or not host:
             return ""
-        if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".test", ".invalid", ".lan", ".home")):
+        if host == "localhost" or host.endswith(".localhost"):
             return ""
         try:
-            if not ipaddress.ip_address(host).is_global:
+            address = ipaddress.ip_address(host)
+            if address.is_loopback or address.is_unspecified or address.is_link_local or address.is_multicast:
                 return ""
         except ValueError:
             pass
@@ -36,8 +37,9 @@ def public_expense_url(expense):
         return ""
 
 
+
 def notify_next_role(expense):
-    if expense.status not in {ExpenseStatus.SUBMITTED, ExpenseStatus.APPROVED, ExpenseStatus.RETURNED, ExpenseStatus.REJECTED}:
+    if expense.status not in {ExpenseStatus.IN_REVIEW, ExpenseStatus.SUBMITTED, ExpenseStatus.APPROVED, ExpenseStatus.RETURNED, ExpenseStatus.REJECTED}:
         return
     requester = expense.created_by
     approver = expense.assigned_approver
@@ -46,10 +48,17 @@ def notify_next_role(expense):
             or requester.organization_id != expense.organization_id):
         logger.error("Invalid notification routing for expense %s", expense.pk)
         return
+    reviewer = expense.assigned_reviewer
+    in_review = expense.status == ExpenseStatus.IN_REVIEW
+    recipient_owner = reviewer if in_review else approver
+    if in_review and (reviewer is None or not reviewer.is_active or reviewer.role != Role.REVIEWER or reviewer.organization_id != expense.organization_id):
+        logger.error("Invalid reviewer routing for expense %s", expense.pk)
+        return
     context = {
         "number": expense.expense_number,
         "requester": requester.get_full_name() or requester.username,
-        "approver": approver.get_full_name() or approver.username,
+        "approver": recipient_owner.name,
+        "stage": "review" if in_review else "approval",
         "category": expense.title or (expense.category.name if expense.category else "Untitled expense"),
         "department": expense.department,
         "branch": expense.branch,
@@ -59,8 +68,8 @@ def notify_next_role(expense):
     }
     # Separate messages keep recipients private and allow one delivery to fail
     # without preventing the other recipient's notification.
-    submitted = expense.status == ExpenseStatus.SUBMITTED
-    recipients = ((requester, True), (approver, False)) if submitted else ((requester, False),)
+    submitted = expense.status in (ExpenseStatus.IN_REVIEW, ExpenseStatus.SUBMITTED)
+    recipients = ((requester, True), (recipient_owner, False)) if submitted else ((requester, False),)
     for recipient, confirmation in recipients:
         address = recipient.email
         if not address:
@@ -68,7 +77,7 @@ def notify_next_role(expense):
             continue
         details = {**context, "confirmation": confirmation, "status": expense.get_status_display()}
         subject = f"Homebase: expense {expense.expense_number} " + (
-            "submitted successfully" if confirmation else "needs your approval")
+            "submitted successfully" if confirmation else f"requires your {context['stage']}")
         if not submitted:
             subject = f"Homebase: expense {expense.expense_number} {expense.get_status_display().lower()}"
         if settings.EMAIL_TEST_MODE:

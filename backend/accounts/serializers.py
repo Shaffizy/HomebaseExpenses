@@ -1,4 +1,4 @@
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.password_validation import validate_password, password_changed
 from django.core.exceptions import ValidationError as PasswordError
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
@@ -48,14 +48,14 @@ class AccountRules:
                 raise serializers.ValidationError({"role": "There can be only one active approver."})
         if "password" in attrs:
             try:
-                validate_password(attrs["password"], User(username=attrs.get("username", ""), email=attrs.get("email", "")))
+                validate_password(attrs["password"], User(username=attrs.get("username", user.username if user else ""), email=attrs.get("email", user.email if user else "")))
             except PasswordError as exc:
                 raise serializers.ValidationError({"password": exc.messages})
         return attrs
 
 class RegisterUserSerializer(AccountRules, serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    role = serializers.ChoiceField(choices=[Role.REQUESTER, Role.APPROVER])
+    role = serializers.ChoiceField(choices=[Role.REQUESTER, Role.REVIEWER, Role.APPROVER])
     class Meta:
         model = User
         fields = ["id", "username", "email", "first_name", "last_name", "role", "password", "is_active"]
@@ -72,16 +72,25 @@ class RegisterUserSerializer(AccountRules, serializers.ModelSerializer):
         return user
 
 class UserUpdateSerializer(AccountRules, serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, trim_whitespace=False, min_length=8, max_length=1024)
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "role", "is_active"]
-        read_only_fields = ["id", "username"]
+        fields = ["id", "username", "email", "first_name", "last_name", "role", "is_active", "password"]
+        read_only_fields = ["id"]
     def update(self, instance, validated_data):
         try:
             with transaction.atomic():
-                return super().update(instance, validated_data)
+                password = validated_data.pop("password", None)
+                if password is not None:
+                    instance.set_password(password)
+                    instance.failed_login_attempts = 0
+                    instance.locked_until = None
+                updated = super().update(instance, validated_data)
+                if password is not None:
+                    password_changed(password, updated)
+                return updated
         except IntegrityError:
-            raise serializers.ValidationError({"role": "There can be only one active approver."})
+            raise serializers.ValidationError("Username conflict or an active approver already exists.")
 
 class LoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):

@@ -17,6 +17,7 @@ def ticket(db):
     category = ExpenseCategory.objects.create(organization=org, name="Supplies <script>bad()</script>", created_by=owner)
     expense = Expense.objects.create(organization=org, created_by=owner, expense_number="EXP-MAIL", title="Supplies <script>bad()</script>", category=category, department="IT", branch="Lagos", total="20.00")
     ExpenseItem.objects.create(expense=expense, description="Paper", quantity=2, unit_price=10)
+    User.objects.create_user(username="reviewer", email="reviewer@example.test", organization=org, role=Role.REVIEWER)
     return expense, owner, approver
 
 
@@ -27,9 +28,9 @@ def test_submission_sends_two_private_messages(ticket, django_capture_on_commit_
         assert len(mail.outbox) == 0
     assert len(mail.outbox) == 2
     assert mail.outbox[0].to == [owner.email]
-    assert mail.outbox[1].to == [approver.email]
+    assert mail.outbox[1].to == ["reviewer@example.test"]
     assert "submitted successfully" in mail.outbox[0].subject
-    assert "needs your approval" in mail.outbox[1].subject
+    assert "requires your review" in mail.outbox[1].subject
     assert "NGN 20.00" in mail.outbox[0].body
     assert "&lt;script&gt;" in mail.outbox[0].alternatives[0].content
     assert "<script>" not in mail.outbox[0].alternatives[0].content
@@ -72,7 +73,7 @@ def test_mail_failure_keeps_submission_and_attempts_other_recipient(ticket, djan
         with django_capture_on_commit_callbacks(execute=True):
             transition(expense, owner, "submit")
     expense.refresh_from_db()
-    assert expense.status == "SUBMITTED"
+    assert expense.status == "IN_REVIEW"
     assert send.call_count == 2
 
 
@@ -90,7 +91,8 @@ def test_repeated_submit_does_not_duplicate_mail(ticket, django_capture_on_commi
 def test_decisions_notify_requester_from_application_sender(ticket, django_capture_on_commit_callbacks, settings, action):
     expense, owner, approver = ticket
     with django_capture_on_commit_callbacks(execute=True):
-        transition(expense, owner, "submit")
+        expense = transition(expense, owner, "submit")
+        expense = transition(expense, User.objects.get(username="reviewer"), "review")
     mail.outbox.clear()
     with django_capture_on_commit_callbacks(execute=True):
         transition(expense, approver, action, comment="Reason")
@@ -109,7 +111,7 @@ def test_old_personal_mailboxes_never_override_registered_address(ticket, django
     assert mail.outbox[0].to == [owner.email]
 
 
-@pytest.mark.parametrize("base", ["http://127.0.0.1:5174", "https://127.0.0.1", "https://localhost", "https://[::1]", "https://192.168.1.2", "https://app.internal", "javascript:alert(1)"])
+@pytest.mark.parametrize("base", ["http://127.0.0.1:5174", "https://127.0.0.1", "https://localhost", "https://[::1]", "javascript:alert(1)"])
 def test_email_omits_local_private_or_unsafe_links(ticket, settings, django_capture_on_commit_callbacks, base):
     expense, owner, approver = ticket
     settings.FRONTEND_URL = base

@@ -29,7 +29,7 @@ export function ExpensesPage() {
     });
     const totalPages = Math.max(1, Math.ceil((query.data?.count ?? 0) / PAGE_SIZE));
     return (<div>
-      <PageHeader title="Expenses" subtitle="Search, filter, and open any expense in your organization." actions={user?.role === "REQUESTER" && (<Link to="/expenses/new" className="rounded-full bg-[var(--color-rust)] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(230,23,29,0.12)] hover:bg-[var(--color-rust-hover)]">
+      <PageHeader title="Expenses" subtitle="Search, filter, and open any expense in your organization." actions={["REQUESTER", "REVIEWER"].includes(user?.role) && (<Link to="/expenses/new" className="rounded-full bg-[var(--color-rust)] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(230,23,29,0.12)] hover:bg-[var(--color-rust-hover)]">
               New expense
             </Link>)}/>
 
@@ -45,7 +45,7 @@ export function ExpensesPage() {
 
       {query.isLoading ? (<div className="flex justify-center py-20">
           <Spinner className="h-8 w-8"/>
-        </div>) : query.isError ? (<ErrorState message={errorMessage(query.error)} onRetry={() => query.refetch()}/>) : query.data && query.data.results.length === 0 ? (<EmptyState title="No expenses found" description={search || status ? "Try clearing the search or filter." : "Create your first expense to get started."} action={user?.role === "REQUESTER" && !search && !status ? (<Link to="/expenses/new" className="rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-sm font-bold text-white hover:bg-[var(--color-ink-soft)]">
+        </div>) : query.isError ? (<ErrorState message={errorMessage(query.error)} onRetry={() => query.refetch()}/>) : query.data && query.data.results.length === 0 ? (<EmptyState title="No expenses found" description={search || status ? "Try clearing the search or filter." : "Create your first expense to get started."} action={["REQUESTER", "REVIEWER"].includes(user?.role) && !search && !status ? (<Link to="/expenses/new" className="rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-sm font-bold text-white hover:bg-[var(--color-ink-soft)]">
                 New expense
               </Link>) : undefined}/>) : (<Card className="!p-0 overflow-hidden">
           <div className="overflow-x-auto">

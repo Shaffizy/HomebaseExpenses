@@ -101,11 +101,13 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = (
             Expense.objects.filter(organization=self.request.user.organization)
-            .select_related("created_by", "organization", "assigned_approver", "approved_by", "category")
+            .select_related("created_by", "organization", "assigned_reviewer", "assigned_approver", "approved_by", "category")
             .prefetch_related("items")
         )
         if self.request.user.role == Role.REQUESTER:
             queryset = queryset.filter(created_by=self.request.user)
+        if self.request.user.role == Role.REVIEWER:
+            queryset = queryset.filter(Q(created_by=self.request.user) | Q(assigned_reviewer=self.request.user))
         if self.action == "list":
             queryset = queryset.defer("approved_signature_data")
         status_param = self.request.query_params.get("status")
@@ -140,6 +142,10 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
         return self._run_action(request, "submit")
+
+    @action(detail=True, methods=["post"])
+    def review(self, request, pk=None):
+        return self._run_action(request, "review")
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
@@ -195,7 +201,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         return Response(expense_history(expense))
 
     def _can_manage_evidence(self, user, expense):
-        return user.role == Role.REQUESTER and expense.created_by_id == user.id and expense.status in (ExpenseStatus.DRAFT, ExpenseStatus.RETURNED)
+        return user.role in (Role.REQUESTER, Role.REVIEWER) and expense.created_by_id == user.id and expense.status in (ExpenseStatus.DRAFT, ExpenseStatus.RETURNED)
 
     @action(detail=True, methods=["get", "post"])
     def evidence(self, request, pk=None):

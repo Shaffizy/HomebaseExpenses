@@ -42,7 +42,7 @@ export function ExpenseFormPage() {
         },
         onError: (err) => toast.error(`${errorMessage(err)}${draft.current ? ". Your draft is saved; retry to finish." : ""}`),
     });
-    if (user?.role !== "REQUESTER") {
+    if (!["REQUESTER", "REVIEWER"].includes(user?.role)) {
         return <ErrorState message="Only requesters can create expenses."/>;
     }
     return (<div className="max-w-3xl">

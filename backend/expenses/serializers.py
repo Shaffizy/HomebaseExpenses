@@ -95,6 +95,9 @@ class ExpenseSerializer(serializers.ModelSerializer):
     total = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     status = serializers.ChoiceField(choices=ExpenseStatus.choices, read_only=True)
     expense_number = serializers.CharField(read_only=True)
+    assigned_reviewer = serializers.PrimaryKeyRelatedField(read_only=True)
+    reviewed_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    reviewed_at = serializers.DateTimeField(read_only=True)
     assigned_approver = serializers.PrimaryKeyRelatedField(read_only=True)
     assigned_approver_name = serializers.CharField(
         source="assigned_approver.name", read_only=True, default=None
@@ -117,6 +120,9 @@ class ExpenseSerializer(serializers.ModelSerializer):
             "status",
             "total",
             "items",
+            "assigned_reviewer",
+            "reviewed_by",
+            "reviewed_at",
             "assigned_approver",
             "assigned_approver_name",
             "created_by",
