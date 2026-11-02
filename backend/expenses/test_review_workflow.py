@@ -92,3 +92,28 @@ def test_reviewer_can_create_expense(setup_review):
     response = client.post("/api/expenses/", {"title": "Reviewer travel", "department": "IT", "branch": "Lagos", "items": [{"description": "Taxi", "quantity": "1", "unit_price": "100"}]}, format="json")
     assert response.status_code == 201, response.data
     assert client.post(f"/api/expenses/{response.data['id']}/submit/").data['status'] == "SUBMITTED"
+
+
+def test_logging_in_other_accounts_does_not_approve_expense(setup_review):
+    org, users, expense = setup_review
+    expense = transition(expense, users[Role.REQUESTER], "submit")
+    expense = transition(expense, users[Role.REVIEWER], "review")
+    history_count = expense.history.count()
+    browsers = {}
+    for role in (Role.REQUESTER, Role.APPROVER):
+        browser = APIClient()
+        login = browser.post('/api/auth/login', {'username': users[role].username, 'password': 'Original-Secret-432!'}, format='json')
+        assert login.status_code == 200, login.data
+        browser.credentials(HTTP_AUTHORIZATION='Bearer ' + login.data['access'])
+        assert browser.get('/api/auth/me').data['id'] == users[role].pk
+        browsers[role] = browser
+    expense.refresh_from_db()
+    assert expense.status == ExpenseStatus.SUBMITTED
+    assert expense.approved_by is None and expense.approved_at is None
+    assert expense.history.count() == history_count
+    assert browsers[Role.REQUESTER].post(f'/api/expenses/{expense.pk}/approve/').status_code == 403
+    expense.refresh_from_db()
+    assert expense.status == ExpenseStatus.SUBMITTED
+    assert browsers[Role.APPROVER].post(f'/api/expenses/{expense.pk}/approve/').status_code == 200
+    expense.refresh_from_db()
+    assert expense.status == ExpenseStatus.APPROVED and expense.approved_by == users[Role.APPROVER]

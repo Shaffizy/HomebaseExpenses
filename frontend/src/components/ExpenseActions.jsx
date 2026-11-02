@@ -112,12 +112,16 @@ export function ExpenseActions({ expense, role }) {
             setComment("");
             setPendingAction(action);
         }
+        else if (action.key === "approve") {
+            setComment("");
+            setPendingAction(action);
+        }
         else {
             mutation.mutate({ action, comment: "" });
         }
     };
     const confirm = () => {
-        if (!pendingAction || !comment.trim())
+        if (!pendingAction || (pendingAction.needsComment && !comment.trim()))
             return;
         mutation.mutate({ action: pendingAction, comment: comment.trim() });
     };
@@ -131,16 +135,18 @@ export function ExpenseActions({ expense, role }) {
         </button>))}
 
       {createPortal(<Modal open={pendingAction !== null} title={pendingAction?.confirmTitle ?? ""} onClose={() => { if (!mutation.isPending) setPendingAction(null); }}>
-        <label htmlFor="action-comment" className="block text-xs font-bold uppercase tracking-normal text-black/55">
+        {pendingAction?.key === "approve" && <p className="text-sm">Approve expense <strong>{expense.expense_number}</strong> as <strong>{user?.name}</strong>?</p>}
+        {pendingAction?.needsComment && <><label htmlFor="action-comment" className="block text-xs font-bold uppercase tracking-normal text-black/55">
           Comment <span className="text-[var(--color-wine)]">*</span>
         </label>
         <textarea id="action-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={4} autoFocus placeholder="Explain why…" className="mt-1.5 w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2.5 text-sm focus:border-[var(--color-rust)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rust)]/15"/>
+        </>}
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" disabled={mutation.isPending} onClick={() => setPendingAction(null)} className="rounded-full border border-[var(--color-line)] bg-white px-5 py-2.5 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-linen)]">
             Cancel
           </button>
-          <button type="button" onClick={confirm} disabled={!comment.trim() || mutation.isPending} className={`rounded-full px-5 py-2.5 text-sm font-bold shadow-sm disabled:opacity-50 ${pendingAction?.style ?? ""}`}>
-            {mutation.isPending ? "Working…" : pendingAction?.label}
+          <button type="button" onClick={confirm} disabled={(pendingAction?.needsComment && !comment.trim()) || mutation.isPending} className={`rounded-full px-5 py-2.5 text-sm font-bold shadow-sm disabled:opacity-50 ${pendingAction?.style ?? ""}`}>
+            {mutation.isPending ? "Working…" : pendingAction?.key === "approve" ? "Confirm approval" : pendingAction?.label}
           </button>
         </div>
       </Modal>, document.body)}

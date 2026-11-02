@@ -58,3 +58,9 @@ On the server: pull the release, run npm ci and npm run build in frontend, retai
 ## Category and Particular form simplification
 
 Expense name is no longer shown or required in the form. Category is required in the new frontend and supplies the saved summary automatically. The legacy title field is retained for history and older clients; no migration or data deletion is required. Selecting a category fills the first Particular when blank, or replaces its previous automatic category text. Custom particulars are not overwritten. Clearing Particular does not refill it until another category is selected. Each Particular remains editable and must contain a description before saving. Deploy by pulling the release, rebuilding frontend and restarting only HB-expenses-api.
+
+## Separate browser-tab logins and approval confirmation
+
+Login tokens now use tab-specific sessionStorage, instead of browser-wide localStorage. Each tab can sign into a different account. Opening a new tab may initially inherit the opener's session depending on browser behavior, but subsequent login changes remain isolated. Account changes clear the query cache. Late responses and token refreshes from a previous login are discarded; a failed action is never retried under a newly signed-in account. Approve opens a confirmation showing the expense reference and acting user's name.
+
+Deploy by pulling, rebuilding frontend and restarting HB-expenses-api as usual. No database migration is needed. Close all old Homebase tabs after deployment and open fresh ones, then sign in separately in each. Old browser-wide credentials are not imported. Session credentials last for that tab's session, subject to existing token expiration. This fixes an account-mixing issue; it is not evidence that any reported live expense was automatically approved. Check the affected expense History for the actor and transition before altering records.

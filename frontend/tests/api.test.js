@@ -16,9 +16,9 @@ function unauthorized(config) {
 
 beforeEach(() => {
   values = new Map();
-  globalThis.localStorage = { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) };
+  globalThis.sessionStorage = { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: (key) => values.delete(key) };
   globalThis.window = new EventTarget();
-  tokenStore.set("old-access", "valid-refresh");
+  tokenStore.startSession("old-access", "valid-refresh");
 });
 afterEach(() => {
   axios.defaults.adapter = originalAdapter;
@@ -74,4 +74,60 @@ test("writes are not retried after timeouts", async () => {
   await assert.rejects(api.post("/expenses/1/approve/"));
   assert.equal(attempts, 1);
   assert.equal(tokenStore.access, "old-access");
+});
+
+
+test("accounts in separate tab storage do not replace one another", () => {
+  const firstTab = sessionStorage;
+  const secondValues = new Map();
+  globalThis.sessionStorage = {getItem: k => secondValues.get(k) ?? null, setItem: (k,v) => secondValues.set(k,v), removeItem: k => secondValues.delete(k)};
+  tokenStore.startSession("approver-access", "approver-refresh");
+  assert.equal(tokenStore.access, "approver-access");
+  globalThis.sessionStorage = firstTab;
+  assert.equal(tokenStore.access, "old-access");
+});
+
+test("a refresh finishing after account change cannot replace the new login", async () => {
+  let finishRefresh;
+  let started;
+  const refreshStarted = new Promise(resolve => {started = resolve;});
+  axios.defaults.adapter = config => { started(); return new Promise(resolve => {finishRefresh = () => resolve(response(config, 200, {access: "stale-access"}));}); };
+  api.defaults.adapter = async config => {throw unauthorized(config);};
+  const pending = api.get('/auth/me');
+  await refreshStarted;
+  tokenStore.startSession("new-account-access", "new-account-refresh");
+  finishRefresh();
+  await assert.rejects(pending, error => axios.isCancel(error));
+  assert.equal(tokenStore.access, "new-account-access");
+  assert.equal(tokenStore.refresh, "new-account-refresh");
+});
+
+test("a late response cannot show the previous account's data", async () => {
+  let finish;
+  let started;
+  const requested = new Promise(resolve => {started = resolve;});
+  api.defaults.adapter = config => {started(); return new Promise(resolve => {finish = () => resolve(response(config, 200, {private: 'previous-account'}));});};
+  const pending = api.get('/expenses/');
+  await requested;
+  tokenStore.startSession("new-account", "new-refresh");
+  finish();
+  await assert.rejects(pending, error => axios.isCancel(error));
+});
+
+test("an old account's failed request is never retried as the new account", async () => {
+  let fail;
+  let started;
+  let refreshes = 0;
+  let requests = 0;
+  const requested = new Promise(resolve => {started = resolve;});
+  axios.defaults.adapter = async config => {refreshes++; return response(config, 200, {access:'unexpected'});};
+  api.defaults.adapter = config => {requests++; started(); return new Promise((resolve,reject) => {fail = () => reject(unauthorized(config));});};
+  const pending = api.post('/expenses/1/approve/');
+  await requested;
+  tokenStore.startSession("different-account", "different-refresh");
+  fail();
+  await assert.rejects(pending, error => axios.isCancel(error));
+  assert.equal(requests, 1);
+  assert.equal(refreshes, 0);
+  assert.equal(tokenStore.access, "different-account");
 });
