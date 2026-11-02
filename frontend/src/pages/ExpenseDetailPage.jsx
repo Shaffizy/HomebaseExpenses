@@ -97,6 +97,7 @@ export function ExpenseDetailPage() {
             <Card>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
                 <div><dt className="text-xs font-semibold text-black/50">Requested by</dt><dd className="mt-1 text-sm font-semibold">{expense.requested_by}</dd></div>
+                <div><dt className="text-xs font-semibold text-black/50">Category</dt><dd className="mt-1 text-sm font-semibold">{expense.expense_category_name || "Not set"}</dd></div>
                 <div><dt className="text-xs font-semibold text-black/50">Branch</dt><dd className="mt-1 text-sm font-semibold">{expense.branch || "Not set"}</dd></div>
                 <div>
                   <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">Expense number</dt>

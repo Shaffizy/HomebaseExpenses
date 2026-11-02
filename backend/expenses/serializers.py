@@ -59,6 +59,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
     title = serializers.CharField(max_length=255, allow_blank=False, trim_whitespace=True)
     category = serializers.PrimaryKeyRelatedField(queryset=ExpenseCategory.objects.none(), required=False, allow_null=True)
     category_name = serializers.SerializerMethodField()
+    expense_category_name = serializers.CharField(source="category.name", read_only=True, default=None)
     category_is_active = serializers.BooleanField(source="category.is_active", read_only=True, default=False)
     department = serializers.ChoiceField(choices=Expense.Department.choices, required=False)
     branch = serializers.ChoiceField(choices=Expense.Branch.choices)
@@ -118,6 +119,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
             "title",
             "category",
             "category_name",
+            "expense_category_name",
             "category_is_active",
             "department",
             "branch",

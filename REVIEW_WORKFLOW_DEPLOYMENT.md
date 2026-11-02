@@ -48,3 +48,9 @@ Review the reported missing reviewer IDs, configure their departments/reviewers,
 ```
 
 Preview does not write or send email. Apply changes only pending reviewer assignments, records history, and sends notifications for changed assignments. If any pending expense lacks a valid department reviewer, no assignments are changed. Other statuses and the expense department stay unchanged. Existing drafts from another department must be edited by their owner to adopt the owner's configured department before submission.
+
+## Category selector restoration (2026-11-02)
+
+The expense form again shows a Category dropdown alongside the custom Expense name. Options come from active categories managed in Admin -> Categories, without hardcoded replacement names. Category is separate from department routing. Existing inactive categories are retained when editing an expense without changing its category. No database migration is needed for this release.
+
+On the server: pull the release, run npm ci and npm run build in frontend, retain IIS read access to dist, then restart only HB-expenses-api to load the additional category display field. Refresh the browser with Ctrl+F5. If the dropdown has no options, an administrator must configure active categories in Categories. Cash advance is a future separate change and is not implemented here.

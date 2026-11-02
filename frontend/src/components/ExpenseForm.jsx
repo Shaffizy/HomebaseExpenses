@@ -8,11 +8,13 @@ import { useAuth } from "../auth/AuthContext";
 import { api, errorMessage } from "../lib/api";
 import { StyledSelect } from "./StyledSelect";
 import { EvidenceInput } from "./EvidenceInput";
+import { expenseCategoryOptions, expenseCategoryPayload } from "../lib/expenseCategorySelection";
 import { lineCostCents, formatCost, overallCostCents } from "../lib/expenseCosts";
 
 const decimal = z.string().regex(/^\d{1,12}(\.\d{1,2})?$/, "Enter a nonnegative number with up to two decimal places");
 const schema = z.object({
   title: z.string().trim().min(1, "Enter an expense name").max(255, "Use no more than 255 characters"),
+  category: z.string().optional(),
   department: z.string().min(1, "Select a department"),
   branch: z.string().min(1, "Select a branch"),
   due_date: z.string().optional(),
@@ -26,9 +28,12 @@ export function ExpenseForm({ expense, onSave, onSubmitAndSend, saving }) {
   const [evidence, setEvidence] = useState([]);
   const [pendingEvidence, setPendingEvidence] = useState(false);
   const options = useQuery({ queryKey: ["expense-options"], queryFn: async () => (await api.get("/expenses/options/")).data });
+  const categories = useQuery({ queryKey: ["expense-categories", "active"], queryFn: async () => (await api.get("/expense-categories/")).data });
+  const categoryOptions = expenseCategoryOptions(categories.data ?? [], expense);
   const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
+      category: expense?.category ? String(expense.category) : "",
       title: expense?.title ?? expense?.category_name ?? "",
       department: user?.department ?? "",
       branch: expense?.branch ?? "",
@@ -39,7 +44,7 @@ export function ExpenseForm({ expense, onSave, onSubmitAndSend, saving }) {
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const values = watch();
   const blocked = !user?.department || saving || pendingEvidence || options.isLoading || options.isError;
-  const payload = (values) => ({ title: values.title.trim(), department: user?.department ?? "", branch: values.branch, due_date: values.due_date || null, currency: "NGN", items: values.items });
+  const payload = (values) => ({ title: values.title.trim(), ...expenseCategoryPayload(values.category, expense), department: user?.department ?? "", branch: values.branch, due_date: values.due_date || null, currency: "NGN", items: values.items });
   const send = (values, submit) => { if (!blocked) (submit ? onSubmitAndSend : onSave)(payload(values), evidence); };
   return <form onSubmit={handleSubmit((values) => send(values, false))} className="space-y-6">
     <section className="space-y-4">
@@ -50,6 +55,7 @@ export function ExpenseForm({ expense, onSave, onSubmitAndSend, saving }) {
       <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-2">
         <div><label className="mb-2 block text-sm font-semibold">Requested by</label><input aria-label="Requested by" readOnly value={expense?.requested_by ?? user?.name ?? ""} className={inputClass + " bg-gray-50"} /></div>
         <div><label htmlFor="expense-title" className="mb-2 block text-sm font-semibold">Expense name</label><input id="expense-title" maxLength={255} {...register("title")} aria-invalid={Boolean(errors.title)} aria-describedby={errors.title ? "expense-title-error" : undefined} className={inputClass} />{errors.title && <p id="expense-title-error" role="alert" className="mt-1 text-xs text-red-700">{errors.title.message}</p>}</div>
+        <div><label className="mb-2 block text-sm font-semibold">Category</label><StyledSelect label="Category" value={values.category ?? ""} onChange={(value) => setValue("category", value, { shouldValidate: true })} options={categoryOptions} disabled={saving || categories.isLoading || categories.isError} /><FieldError message={errors.category?.message} />{categories.isLoading && <p role="status" className="mt-1 text-xs text-black/50">Loading categories...</p>}{categories.isError && <p role="alert" className="mt-1 text-xs text-red-700">{errorMessage(categories.error)} <button type="button" onClick={() => categories.refetch()} className="underline">Retry</button></p>}{categories.isSuccess && categories.data.length === 0 && <p className="mt-1 text-xs text-black/50">No active categories. Ask your administrator to add them under Categories.</p>}</div>
         <div><label className="mb-2 block text-sm font-semibold">Department</label><input aria-label="Department" readOnly value={user?.department || "Not assigned"} className={inputClass + " bg-gray-50"} /><FieldError message={errors.department?.message} /></div>
         <div><label className="mb-2 block text-sm font-semibold">Branch</label><StyledSelect label="Branch" value={values.branch} onChange={(value) => setValue("branch", value, { shouldValidate: true })} options={[{ value: "", label: "Select branch" }, ...(options.data?.branches ?? [])]} disabled={saving || options.isLoading} /><FieldError message={errors.branch?.message} /></div>
         <div><label htmlFor="expense-date" className="mb-2 block text-sm font-semibold">Date</label><input id="expense-date" type="date" {...register("due_date")} className={inputClass} /><FieldError message={errors.due_date?.message} /></div>
