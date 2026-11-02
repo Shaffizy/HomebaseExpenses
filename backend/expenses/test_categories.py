@@ -55,7 +55,7 @@ def test_invalid_controlled_fields_rejected(setup, overrides):
 def test_required_name_and_controlled_department_branch(setup):
     org, users, expense = setup
     client = api(users["REQUESTER"])
-    for field in ["title", "department", "branch"]:
+    for field in ["title", "branch"]:
         payload = data(expense)
         del payload[field]
         assert client.post("/api/expenses/", payload, format="json").status_code == 400

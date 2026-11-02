@@ -62,6 +62,10 @@ def transition(expense, user, action, comment=None):
             raise TransitionError("Enter an expense name before submitting.", 400)
         if expense.department not in Expense.Department.values or expense.branch not in Expense.Branch.values:
             raise TransitionError("Select a valid department and branch before submitting.", 400)
+        if user.department not in Expense.Department.values:
+            raise TransitionError("Ask your administrator to assign your department before submitting.", 409)
+        if expense.department != user.department:
+            raise TransitionError("You can only submit expenses for your assigned department. Edit the draft before submitting.", 403)
         if not expense.items.exists():
             raise TransitionError("Add at least one item.", 400)
         if approver is None:
@@ -71,11 +75,13 @@ def transition(expense, user, action, comment=None):
         raise TransitionError("You cannot review or approve your own expense.", 403)
     if action != "submit" and user.role == Role.REVIEWER and expense.assigned_reviewer_id != user.pk:
         raise TransitionError("Only the assigned reviewer can act.", 403)
+    if action != "submit" and user.role == Role.REVIEWER and (not user.department or user.department != expense.department):
+        raise TransitionError("You can only review expenses in your assigned department.", 403)
     reviewer = None
     if action == "submit" and user.role == Role.REQUESTER:
-        reviewer = User.objects.filter(organization_id=expense.organization_id, role=Role.REVIEWER, is_active=True).order_by("pk").first()
+        reviewer = User.objects.filter(organization_id=expense.organization_id, role=Role.REVIEWER, is_active=True, department=user.department).order_by("pk").first()
         if reviewer is None:
-            raise TransitionError("No active reviewer is configured.", 409)
+            raise TransitionError("No active reviewer is configured for your department.", 409)
     reused = None
     if action in REQUIRES_COMMENT:
         if comment is not None and not isinstance(comment, str):
@@ -132,7 +138,7 @@ def can_comment(user, expense):
     if expense.created_by_id == user.pk:
         return user.role in (Role.REQUESTER, Role.REVIEWER) and expense.status == ExpenseStatus.RETURNED
     if user.role == Role.REVIEWER:
-        return expense.assigned_reviewer_id == user.pk and expense.status == ExpenseStatus.IN_REVIEW
+        return bool(user.department) and user.department == expense.department and expense.assigned_reviewer_id == user.pk and expense.status == ExpenseStatus.IN_REVIEW
     if user.role == Role.APPROVER:
         approver = _resolve_approver(expense)
         return approver is not None and approver.pk == user.pk and expense.status == ExpenseStatus.SUBMITTED

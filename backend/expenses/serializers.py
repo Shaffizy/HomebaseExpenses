@@ -60,7 +60,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(queryset=ExpenseCategory.objects.none(), required=False, allow_null=True)
     category_name = serializers.SerializerMethodField()
     category_is_active = serializers.BooleanField(source="category.is_active", read_only=True, default=False)
-    department = serializers.ChoiceField(choices=Expense.Department.choices)
+    department = serializers.ChoiceField(choices=Expense.Department.choices, required=False)
     branch = serializers.ChoiceField(choices=Expense.Branch.choices)
     currency = serializers.ChoiceField(choices=["NGN"], default="NGN")
     requested_by = serializers.CharField(source="created_by.name", read_only=True)
@@ -77,6 +77,13 @@ class ExpenseSerializer(serializers.ModelSerializer):
         return expense.title or (expense.category.name if expense.category_id else "Untitled expense")
 
     def validate(self, attrs):
+        user = self.context["request"].user
+        if user.role in (Role.REQUESTER, Role.REVIEWER):
+            if user.department not in Expense.Department.values:
+                raise serializers.ValidationError({"department": "Ask your administrator to assign your department before creating or editing an expense."})
+            if "department" in attrs and attrs["department"] != user.department:
+                raise serializers.ValidationError({"department": "You can only raise expenses for your assigned department."})
+            attrs["department"] = user.department
         category = attrs.get("category")
         if category is not None and not category.is_active:
             raise serializers.ValidationError({"category": "This category is inactive."})

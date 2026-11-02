@@ -8,7 +8,7 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.utils import get_md5_hash_password
 from rest_framework.exceptions import AuthenticationFailed
 from secrets import compare_digest
-from .models import Organization, Role, User
+from .models import Department, Organization, Role, User
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,14 +21,14 @@ class UserSerializer(serializers.ModelSerializer):
     organization = OrganizationSerializer(read_only=True)
     class Meta:
         model = User
-        fields = ["id", "name", "role", "is_staff", "isStaff", "organization"]
+        fields = ["id", "name", "role", "department", "is_staff", "isStaff", "organization"]
 
 class UserAdminSerializer(serializers.ModelSerializer):
     name = serializers.CharField(read_only=True)
     organization = OrganizationSerializer(read_only=True)
     class Meta:
         model = User
-        fields = ["id", "username", "name", "email", "first_name", "last_name", "role", "organization", "is_active", "is_staff", "date_joined", "last_login"]
+        fields = ["id", "username", "name", "email", "first_name", "last_name", "role", "department", "organization", "is_active", "is_staff", "date_joined", "last_login"]
 
 class AccountRules:
     def validate(self, attrs):
@@ -40,6 +40,9 @@ class AccountRules:
             raise serializers.ValidationError("You cannot remove your own administrator access.")
         if user and role == Role.ADMIN and user.role != Role.ADMIN:
             raise serializers.ValidationError({"role": "Administrator privileges are not granted through this form."})
+        department = attrs.get("department", user.department if user else "")
+        if role in (Role.REQUESTER, Role.REVIEWER) and department not in Department.values:
+            raise serializers.ValidationError({"department": "Assign a department to this requester or reviewer."})
         if role == Role.APPROVER and active:
             others = User.objects.filter(organization=admin.organization, role=Role.APPROVER, is_active=True)
             if user:
@@ -58,7 +61,7 @@ class RegisterUserSerializer(AccountRules, serializers.ModelSerializer):
     role = serializers.ChoiceField(choices=[Role.REQUESTER, Role.REVIEWER, Role.APPROVER])
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "role", "password", "is_active"]
+        fields = ["id", "username", "email", "first_name", "last_name", "role", "department", "password", "is_active"]
         read_only_fields = ["id"]
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -75,7 +78,7 @@ class UserUpdateSerializer(AccountRules, serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, trim_whitespace=False, min_length=8, max_length=1024)
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "role", "is_active", "password"]
+        fields = ["id", "username", "email", "first_name", "last_name", "role", "department", "is_active", "password"]
         read_only_fields = ["id"]
     def update(self, instance, validated_data):
         try:

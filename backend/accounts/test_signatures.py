@@ -35,7 +35,7 @@ def upload(user, **overrides):
 @pytest.fixture
 def people(db):
     org = Organization.objects.create(name="Signature tests")
-    return {role: User.objects.create_user(username=role.lower(), organization=org, role=role, password=PASSWORD) for role in Role.values}
+    return {role: User.objects.create_user(department="IT", username=role.lower(), organization=org, role=role, password=PASSWORD) for role in Role.values}
 
 
 @pytest.mark.django_db

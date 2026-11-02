@@ -6,6 +6,17 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 
+class Department(models.TextChoices):
+    IT = "IT", "IT"
+    INTERNAL_CONTROL = "Internal Control", "Internal Control"
+    FINCON = "FinCon", "FinCon"
+    MARKETING = "Marketing", "Marketing"
+    HUMAN_RESOURCES = "Human Resources", "Human Resources"
+    RISK_CONTROL = "Risk Control", "Risk Control"
+    LEGAL = "Legal", "Legal"
+    OPERATION = "Operation", "Operation"
+
+
 class Role(models.TextChoices):
     REQUESTER = "REQUESTER", "Requester"
     REVIEWER = "REVIEWER", "Reviewer"
@@ -29,6 +40,7 @@ class User(AbstractUser):
         Organization, on_delete=models.CASCADE, related_name="users"
     )
     role = models.CharField(max_length=20, choices=Role.choices)
+    department = models.CharField(max_length=20, choices=Department.choices, blank=True, default="")
     signature_data = models.TextField(blank=True, default="", editable=False)
 
     class Meta:

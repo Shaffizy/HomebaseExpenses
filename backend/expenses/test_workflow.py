@@ -10,7 +10,7 @@ def setup(db):
     org = Organization.objects.create(name="Homebase Mortgage Bank")
     users = {}
     for role in Role.values:
-        users[role] = User.objects.create_user(username=role.lower(), email=f"{role.lower()}@example.test", organization=org, role=role, password="Test-Secret-4321!")
+        users[role] = User.objects.create_user(department="IT", username=role.lower(), email=f"{role.lower()}@example.test", organization=org, role=role, password="Test-Secret-4321!")
     category = ExpenseCategory.objects.create(organization=org, name="Office supplies", created_by=users["ADMIN"])
     expense = Expense.objects.create(organization=org, created_by=users["REQUESTER"], expense_number="EXP-1", title="Office supplies", category=category, department="IT", branch="Lagos")
     ExpenseItem.objects.create(expense=expense, description="Paper", quantity=2, unit_price=10)
@@ -46,7 +46,7 @@ def test_single_approver_constraint(setup):
 @pytest.mark.django_db
 def test_admin_registration_and_privileges(setup):
     org, users, expense = setup
-    payload = {"username": "newrequester", "email": "new@example.test", "role": "REQUESTER", "password": "Secure-New-43!"}
+    payload = {"username": "newrequester", "email": "new@example.test", "role": "REQUESTER", "department": "IT", "password": "Secure-New-43!"}
     assert api(users["REQUESTER"]).post("/api/auth/register", payload, format="json").status_code == 403
     assert api(users["ADMIN"]).post("/api/auth/register", payload, format="json").status_code == 201
     new = User.objects.get(username="newrequester")

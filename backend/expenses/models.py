@@ -10,7 +10,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
-from accounts.models import Organization, User
+from accounts.models import Department, Organization, User
 from .evidence import evidence_path, evidence_storage
 
 
@@ -43,15 +43,7 @@ class ExpenseCategory(models.Model):
 
 
 class Expense(models.Model):
-    class Department(models.TextChoices):
-        IT = "IT", "IT"
-        INTERNAL_CONTROL = "Internal Control", "Internal Control"
-        FINCON = "FinCon", "FinCon"
-        MARKETING = "Marketing", "Marketing"
-        HUMAN_RESOURCES = "Human Resources", "Human Resources"
-        RISK_CONTROL = "Risk Control", "Risk Control"
-        LEGAL = "Legal", "Legal"
-        OPERATION = "Operation", "Operation"
+    Department = Department
 
     class Branch(models.TextChoices):
         LAGOS = "Lagos", "Lagos"

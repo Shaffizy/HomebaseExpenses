@@ -12,7 +12,7 @@ pytestmark = pytest.mark.django_db
 def setup_review(settings):
     settings.EMAIL_TEST_MODE = False
     org = Organization.objects.create(name="Review bank")
-    users = {role: User.objects.create_user(username=role.lower(), email=f"{role.lower()}@example.test", organization=org, role=role, password="Original-Secret-432!") for role in Role.values}
+    users = {role: User.objects.create_user(department="IT", username=role.lower(), email=f"{role.lower()}@example.test", organization=org, role=role, password="Original-Secret-432!") for role in Role.values}
     expense = Expense.objects.create(organization=org, created_by=users[Role.REQUESTER], expense_number="EXP-REVIEW", title="Supplies", department="IT", branch="Lagos")
     ExpenseItem.objects.create(expense=expense, description="Paper", quantity=1, unit_price=10)
     return org, users, expense

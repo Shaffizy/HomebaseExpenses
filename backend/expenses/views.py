@@ -107,7 +107,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         if self.request.user.role == Role.REQUESTER:
             queryset = queryset.filter(created_by=self.request.user)
         if self.request.user.role == Role.REVIEWER:
-            queryset = queryset.filter(Q(created_by=self.request.user) | Q(assigned_reviewer=self.request.user))
+            queryset = queryset.filter(Q(created_by=self.request.user) | (Q(assigned_reviewer=self.request.user, department=self.request.user.department) & ~Q(department="")))
         if self.action == "list":
             queryset = queryset.defer("approved_signature_data")
         status_param = self.request.query_params.get("status")

@@ -51,7 +51,7 @@ def notify_next_role(expense):
     reviewer = expense.assigned_reviewer
     in_review = expense.status == ExpenseStatus.IN_REVIEW
     recipient_owner = reviewer if in_review else approver
-    if in_review and (reviewer is None or not reviewer.is_active or reviewer.role != Role.REVIEWER or reviewer.organization_id != expense.organization_id):
+    if in_review and (reviewer is None or not reviewer.is_active or reviewer.role != Role.REVIEWER or reviewer.organization_id != expense.organization_id or not reviewer.department or reviewer.department != expense.department):
         logger.error("Invalid reviewer routing for expense %s", expense.pk)
         return
     context = {

@@ -12,12 +12,12 @@ from expenses.services import transition, TransitionError
 @pytest.fixture
 def ticket(db):
     org = Organization.objects.create(name="Homebase")
-    owner = User.objects.create_user(username="owner", email="owner@example.test", organization=org, role=Role.REQUESTER)
+    owner = User.objects.create_user(department="IT", username="owner", email="owner@example.test", organization=org, role=Role.REQUESTER)
     approver = User.objects.create_user(username="approver", email="approver@example.test", organization=org, role=Role.APPROVER)
     category = ExpenseCategory.objects.create(organization=org, name="Supplies <script>bad()</script>", created_by=owner)
     expense = Expense.objects.create(organization=org, created_by=owner, expense_number="EXP-MAIL", title="Supplies <script>bad()</script>", category=category, department="IT", branch="Lagos", total="20.00")
     ExpenseItem.objects.create(expense=expense, description="Paper", quantity=2, unit_price=10)
-    User.objects.create_user(username="reviewer", email="reviewer@example.test", organization=org, role=Role.REVIEWER)
+    User.objects.create_user(department="IT", username="reviewer", email="reviewer@example.test", organization=org, role=Role.REVIEWER)
     return expense, owner, approver
 
 

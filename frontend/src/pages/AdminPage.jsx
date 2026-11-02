@@ -5,11 +5,11 @@ import toast from "../lib/notifications";
 import { useAuth } from "../auth/AuthContext";
 import { StyledSelect } from "../components/StyledSelect";
 import { ErrorState, Modal, PageHeader, Spinner } from "../components/ui";
-import { errorMessage } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import * as adminApi from "../lib/adminApi";
 import { ExpenseCategoriesAdmin } from "../components/ExpenseCategoriesAdmin";
 
-const emptyForm = { username: "", email: "", first_name: "", last_name: "", role: "REQUESTER", password: "", is_active: true };
+const emptyForm = { username: "", email: "", first_name: "", last_name: "", role: "REQUESTER", department: "", password: "", is_active: true };
 const fieldClass = "w-full rounded-lg border border-[var(--color-line)] bg-white p-2 text-sm";
 
 export function AdminPage() {
@@ -20,6 +20,7 @@ export function AdminPage() {
   const [editing, setEditing] = useState(null);
   const [target, setTarget] = useState(null);
   const users = useQuery({ queryKey: ["users", user?.organization.id], enabled: user?.role === "ADMIN", queryFn: () => adminApi.listUsers(user.organization.id) });
+  const options = useQuery({ queryKey: ["expense-options"], queryFn: async () => (await api.get("/expenses/options/")).data });
   const refresh = () => client.invalidateQueries({ queryKey: ["users"] });
   const save = useMutation({
     mutationFn: () => editing ? adminApi.updateUser(user.organization.id, editing.id, Object.fromEntries(Object.entries(form).filter(([key, value]) => key !== "password" || value !== ""))) : adminApi.registerUser(form),
@@ -38,9 +39,9 @@ export function AdminPage() {
   return <div>
     <PageHeader title="User management" actions={<button type="button" onClick={() => { setEditing(null); setForm({ ...emptyForm }); }} className="rounded-lg bg-[var(--color-ink)] px-4 py-2 text-sm font-semibold text-white">Register user</button>} />
     {users.isLoading ? <Spinner /> : users.isError ? <ErrorState message={errorMessage(users.error)} onRetry={() => users.refetch()} /> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-      <thead><tr className="border-b"><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead>
-      <tbody>{users.data?.map((person) => <tr key={person.id} className="border-b border-[var(--color-line)]"><td className="p-3">{person.name}</td><td className="p-3">{person.email}</td><td className="p-3">{person.role}</td><td className="p-3">{person.is_active ? "Active" : "Inactive"}</td><td className="p-3"><div className="flex gap-2">
-        <button type="button" onClick={() => { setEditing(person); setForm({ username: person.username, password: "", email: person.email, first_name: person.first_name, last_name: person.last_name, role: person.role, is_active: person.is_active }); }} className="rounded-lg border px-3 py-1">Edit</button>
+      <thead><tr className="border-b"><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">Department</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead>
+      <tbody>{users.data?.map((person) => <tr key={person.id} className="border-b border-[var(--color-line)]"><td className="p-3">{person.name}</td><td className="p-3">{person.email}</td><td className="p-3">{person.role}</td><td className="p-3">{person.department || "Not assigned"}</td><td className="p-3">{person.is_active ? "Active" : "Inactive"}</td><td className="p-3"><div className="flex gap-2">
+        <button type="button" onClick={() => { setEditing(person); setForm({ username: person.username, password: "", email: person.email, first_name: person.first_name, last_name: person.last_name, role: person.role, department: person.department ?? "", is_active: person.is_active }); }} className="rounded-lg border px-3 py-1">Edit</button>
         <button type="button" disabled={person.id === user.id || !person.is_active} onClick={() => setTarget(person)} className="rounded-lg border px-3 py-1 text-red-700 disabled:opacity-40">Deactivate</button>
       </div></td></tr>)}</tbody>
     </table></div>}
@@ -52,9 +53,11 @@ export function AdminPage() {
           <label className="block text-sm">First name<input value={form.first_name} onChange={(event) => setForm({ ...form, first_name: event.target.value })} className={fieldClass} /></label>
           <label className="block text-sm">Last name<input value={form.last_name} onChange={(event) => setForm({ ...form, last_name: event.target.value })} className={fieldClass} /></label>
           <StyledSelect label="Role" value={form.role} onChange={(role) => setForm({ ...form, role })} options={roles} />
+          <StyledSelect label="Department" value={form.department} onChange={(department) => setForm({ ...form, department })} options={[{ value: "", label: "Select department" }, ...(options.data?.departments ?? [])]} disabled={options.isLoading || options.isError} />
+          {["REQUESTER", "REVIEWER"].includes(form.role) && !form.department && <p className="text-sm text-red-700">Choose a department for this account.</p>}
           {<label className="block text-sm">{editing ? "Reset password (leave blank to keep current password)" : "Password"}<input required={!editing} type="password" minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} className={fieldClass} /></label>}
           {editing && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} />Active</label>}
-          <button type="submit" className="rounded-lg bg-[var(--color-ink)] px-4 py-2 text-sm text-white">{save.isPending ? "Saving..." : "Save"}</button>
+          <button type="submit" disabled={options.isLoading || options.isError || (["REQUESTER", "REVIEWER"].includes(form.role) && !form.department)} className="rounded-lg bg-[var(--color-ink)] px-4 py-2 text-sm text-white">{save.isPending ? "Saving..." : "Save"}</button>
         </fieldset>
       </form>}
     </Modal>

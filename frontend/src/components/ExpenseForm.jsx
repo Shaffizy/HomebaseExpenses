@@ -30,7 +30,7 @@ export function ExpenseForm({ expense, onSave, onSubmitAndSend, saving }) {
     resolver: zodResolver(schema),
     defaultValues: {
       title: expense?.title ?? expense?.category_name ?? "",
-      department: expense?.department ?? "",
+      department: user?.department ?? "",
       branch: expense?.branch ?? "",
       due_date: expense ? expense.due_date ?? "" : new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()),
       items: expense?.items.map((item) => ({ description: item.description, quantity: item.quantity, unit_price: item.unit_price })) ?? [{ description: "", quantity: "1", unit_price: "0" }],
@@ -38,18 +38,19 @@ export function ExpenseForm({ expense, onSave, onSubmitAndSend, saving }) {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const values = watch();
-  const blocked = saving || pendingEvidence || options.isLoading || options.isError;
-  const payload = (values) => ({ title: values.title.trim(), department: values.department, branch: values.branch, due_date: values.due_date || null, currency: "NGN", items: values.items });
+  const blocked = !user?.department || saving || pendingEvidence || options.isLoading || options.isError;
+  const payload = (values) => ({ title: values.title.trim(), department: user?.department ?? "", branch: values.branch, due_date: values.due_date || null, currency: "NGN", items: values.items });
   const send = (values, submit) => { if (!blocked) (submit ? onSubmitAndSend : onSave)(payload(values), evidence); };
   return <form onSubmit={handleSubmit((values) => send(values, false))} className="space-y-6">
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Expense details</h2>
       {options.isLoading && <p role="status" className="text-sm">Loading expense options...</p>}
       {options.isError && <div role="alert" className="text-sm text-red-700">{errorMessage(options.error)} <button type="button" onClick={() => options.refetch()} className="underline">Retry</button></div>}
+      {!user?.department && <p role="alert" className="text-sm text-red-700">Ask your administrator to assign your department before creating or submitting an expense.</p>}
       <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-2">
         <div><label className="mb-2 block text-sm font-semibold">Requested by</label><input aria-label="Requested by" readOnly value={expense?.requested_by ?? user?.name ?? ""} className={inputClass + " bg-gray-50"} /></div>
         <div><label htmlFor="expense-title" className="mb-2 block text-sm font-semibold">Expense name</label><input id="expense-title" maxLength={255} {...register("title")} aria-invalid={Boolean(errors.title)} aria-describedby={errors.title ? "expense-title-error" : undefined} className={inputClass} />{errors.title && <p id="expense-title-error" role="alert" className="mt-1 text-xs text-red-700">{errors.title.message}</p>}</div>
-        <div><label className="mb-2 block text-sm font-semibold">Department</label><StyledSelect label="Department" value={values.department} onChange={(value) => setValue("department", value, { shouldValidate: true })} options={[{ value: "", label: "Select department" }, ...(options.data?.departments ?? [])]} disabled={saving || options.isLoading} /><FieldError message={errors.department?.message} /></div>
+        <div><label className="mb-2 block text-sm font-semibold">Department</label><input aria-label="Department" readOnly value={user?.department || "Not assigned"} className={inputClass + " bg-gray-50"} /><FieldError message={errors.department?.message} /></div>
         <div><label className="mb-2 block text-sm font-semibold">Branch</label><StyledSelect label="Branch" value={values.branch} onChange={(value) => setValue("branch", value, { shouldValidate: true })} options={[{ value: "", label: "Select branch" }, ...(options.data?.branches ?? [])]} disabled={saving || options.isLoading} /><FieldError message={errors.branch?.message} /></div>
         <div><label htmlFor="expense-date" className="mb-2 block text-sm font-semibold">Date</label><input id="expense-date" type="date" {...register("due_date")} className={inputClass} /><FieldError message={errors.due_date?.message} /></div>
       </fieldset>
