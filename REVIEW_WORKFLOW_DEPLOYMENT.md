@@ -54,3 +54,7 @@ Preview does not write or send email. Apply changes only pending reviewer assign
 The expense form again shows a Category dropdown alongside the custom Expense name. Options come from active categories managed in Admin -> Categories, without hardcoded replacement names. Category is separate from department routing. Existing inactive categories are retained when editing an expense without changing its category. No database migration is needed for this release.
 
 On the server: pull the release, run npm ci and npm run build in frontend, retain IIS read access to dist, then restart only HB-expenses-api to load the additional category display field. Refresh the browser with Ctrl+F5. If the dropdown has no options, an administrator must configure active categories in Categories. Cash advance is a future separate change and is not implemented here.
+
+## Category and Particular form simplification
+
+Expense name is no longer shown or required in the form. Category is required in the new frontend and supplies the saved summary automatically. The legacy title field is retained for history and older clients; no migration or data deletion is required. Selecting a category fills the first Particular when blank, or replaces its previous automatic category text. Custom particulars are not overwritten. Clearing Particular does not refill it until another category is selected. Each Particular remains editable and must contain a description before saving. Deploy by pulling the release, rebuilding frontend and restarting only HB-expenses-api.

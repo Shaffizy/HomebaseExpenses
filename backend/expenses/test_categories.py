@@ -52,13 +52,17 @@ def test_invalid_controlled_fields_rejected(setup, overrides):
     assert api(users["REQUESTER"]).post("/api/expenses/", data(expense, **overrides), format="json").status_code == 400
 
 @pytest.mark.django_db
-def test_required_name_and_controlled_department_branch(setup):
+def test_category_supplies_summary_and_branch_is_required(setup):
     org, users, expense = setup
     client = api(users["REQUESTER"])
-    for field in ["title", "branch"]:
+    for field in ["branch"]:
         payload = data(expense)
         del payload[field]
         assert client.post("/api/expenses/", payload, format="json").status_code == 400
+    category_only = data(expense)
+    del category_only["title"]
+    created = client.post("/api/expenses/", category_only, format="json")
+    assert created.status_code == 201 and created.data["title"] == expense.category.name
     response = client.post("/api/expenses/", data(expense, title="Invented category", vendor_name="Invented department"), format="json")
     assert response.status_code == 201
     assert response.data["title"] == response.data["category_name"] == "Invented category"

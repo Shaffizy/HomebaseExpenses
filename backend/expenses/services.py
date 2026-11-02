@@ -59,7 +59,7 @@ def transition(expense, user, action, comment=None):
         raise TransitionError("Only the organization's active approver can act.", 403)
     if action == "submit":
         if not expense.title or not expense.title.strip():
-            raise TransitionError("Enter an expense name before submitting.", 400)
+            raise TransitionError("Select a category and save the expense before submitting.", 400)
         if expense.department not in Expense.Department.values or expense.branch not in Expense.Branch.values:
             raise TransitionError("Select a valid department and branch before submitting.", 400)
         if user.department not in Expense.Department.values:

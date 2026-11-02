@@ -56,7 +56,7 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
-    title = serializers.CharField(max_length=255, allow_blank=False, trim_whitespace=True)
+    title = serializers.CharField(max_length=255, allow_blank=False, trim_whitespace=True, required=False)
     category = serializers.PrimaryKeyRelatedField(queryset=ExpenseCategory.objects.none(), required=False, allow_null=True)
     category_name = serializers.SerializerMethodField()
     expense_category_name = serializers.CharField(source="category.name", read_only=True, default=None)
@@ -88,6 +88,12 @@ class ExpenseSerializer(serializers.ModelSerializer):
         category = attrs.get("category")
         if category is not None and not category.is_active:
             raise serializers.ValidationError({"category": "This category is inactive."})
+        selected_category = attrs.get("category", self.instance.category if self.instance else None)
+        if "title" not in attrs:
+            if selected_category and (self.instance is None or "category" in attrs or not self.instance.title):
+                attrs["title"] = selected_category.name
+            elif self.instance is None:
+                raise serializers.ValidationError({"category": "Select a category before saving the expense."})
         items = attrs.get("items")
         if items is not None:
             total = sum(((item["quantity"] * item["unit_price"]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) for item in items), Decimal("0.00"))

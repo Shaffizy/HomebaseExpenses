@@ -12,3 +12,8 @@ export function expenseCategoryPayload(value, expense) {
   if (expense && category === (expense.category ?? null)) return {};
   return { category };
 }
+
+export function categoryParticular(current, previousCategory, nextCategory) {
+  if (!nextCategory) return current;
+  return !current.trim() || current === previousCategory ? nextCategory : current;
+}
