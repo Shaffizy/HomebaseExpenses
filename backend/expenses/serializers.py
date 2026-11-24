@@ -107,15 +107,32 @@ class ExpenseSerializer(serializers.ModelSerializer):
     approved_at = serializers.DateTimeField(read_only=True)
     approved_signature_data = serializers.CharField(read_only=True)
     total = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    wht_classification = serializers.CharField(read_only=True)
+    wht_classification_label = serializers.SerializerMethodField()
+    wht_rate = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
+    wht_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    net_total = serializers.SerializerMethodField()
     status = serializers.ChoiceField(choices=ExpenseStatus.choices, read_only=True)
     expense_number = serializers.CharField(read_only=True)
     assigned_reviewer = serializers.PrimaryKeyRelatedField(read_only=True)
+    assigned_reviewer_name = serializers.CharField(source="assigned_reviewer.name", read_only=True, default=None)
     reviewed_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    reviewed_by_name = serializers.CharField(source="reviewed_by.name", read_only=True, default=None)
     reviewed_at = serializers.DateTimeField(read_only=True)
+    fincon_reviewed_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    fincon_reviewed_by_name = serializers.CharField(source="fincon_reviewed_by.name", read_only=True, default=None)
+    fincon_reviewed_at = serializers.DateTimeField(read_only=True)
     assigned_approver = serializers.PrimaryKeyRelatedField(read_only=True)
     assigned_approver_name = serializers.CharField(
         source="assigned_approver.name", read_only=True, default=None
     )
+
+    def get_wht_classification_label(self, expense):
+        return expense.get_wht_classification_display() if expense.wht_classification else ""
+
+    def get_net_total(self, expense):
+        net = (expense.total - (expense.wht_amount or Decimal("0.00"))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return f"{net:.2f}"
 
     class Meta:
         model = Expense
@@ -134,10 +151,20 @@ class ExpenseSerializer(serializers.ModelSerializer):
             "currency",
             "status",
             "total",
+            "wht_classification",
+            "wht_classification_label",
+            "wht_rate",
+            "wht_amount",
+            "net_total",
             "items",
             "assigned_reviewer",
+            "assigned_reviewer_name",
             "reviewed_by",
+            "reviewed_by_name",
             "reviewed_at",
+            "fincon_reviewed_by",
+            "fincon_reviewed_by_name",
+            "fincon_reviewed_at",
             "assigned_approver",
             "assigned_approver_name",
             "created_by",
@@ -153,7 +180,15 @@ class ExpenseSerializer(serializers.ModelSerializer):
             "expense_number",
             "status",
             "total",
+            "wht_classification",
+            "wht_classification_label",
+            "wht_rate",
+            "wht_amount",
+            "net_total",
             "created_by",
+            "assigned_reviewer_name",
+            "reviewed_by_name",
+            "fincon_reviewed_by_name",
             "assigned_approver_name",
             "created_at",
             "updated_at",
@@ -166,7 +201,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
             line = ExpenseItem.objects.create(expense=expense, **item)
             total += line.line_total
         expense.total = total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        expense.save(update_fields=["total", "updated_at"])
+        wht_amount = (expense.total * (expense.wht_rate or Decimal("0.00")) / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        expense.wht_amount = wht_amount
+        expense.net_total = (expense.total - wht_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        expense.save(update_fields=["total", "wht_amount", "net_total", "updated_at"])
 
     @transaction.atomic
     def create(self, validated_data):

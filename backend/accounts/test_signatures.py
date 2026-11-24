@@ -119,7 +119,9 @@ def test_approval_snapshot_is_immutable_and_scoped(people):
     expense.refresh_from_db()
     assert expense.approved_signature_data == ""
     expense = transition(expense, requester, "submit")
+    fincon = User.objects.create_user(department="FinCon", username="fincon", organization=requester.organization, role=Role.REVIEWER, password=PASSWORD)
     expense = transition(expense, people["REVIEWER"], "review")
+    expense = transition(expense, fincon, "review", wht_classification="NON_TAXABLE_0")
     expense = transition(expense, approver, "approve")
     assert expense.approved_signature_data == original
     assert upload(approver, file=image_file("blue")).status_code == 200

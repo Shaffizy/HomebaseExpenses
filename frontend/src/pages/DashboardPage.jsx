@@ -10,7 +10,7 @@ function actionStatusesFor(role) {
         case "REQUESTER":
             return ["DRAFT", "RETURNED"];
         case "REVIEWER":
-            return ["IN_REVIEW", "DRAFT", "RETURNED"];
+            return ["IN_REVIEW", "IN_FINCON_REVIEW", "DRAFT", "RETURNED"];
         case "APPROVER":
             return ["SUBMITTED"];
         default:
@@ -26,6 +26,7 @@ const ACTION_LIST_LABEL = {
 const STATUS_ACCENT = {
     DRAFT: "bg-[#a3a3a3]",
     IN_REVIEW: "bg-[#e0e7ff] text-[#3730a3]",
+    IN_FINCON_REVIEW: "bg-[#a855f7]",
     SUBMITTED: "bg-[#60a5fa]",
     APPROVED: "bg-[#4ade80]",
     RETURNED: "bg-[#fbbf24]",

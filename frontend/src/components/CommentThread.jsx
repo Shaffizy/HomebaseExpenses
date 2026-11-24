@@ -9,7 +9,10 @@ export function canComment(user, expense) {
     if (!user)
         return false;
     return (["REQUESTER", "REVIEWER"].includes(user.role) && user.id === expense.created_by && expense.status === "RETURNED") ||
-        (user.role === "REVIEWER" && expense.created_by !== user.id && expense.assigned_reviewer === user.id && expense.status === "IN_REVIEW") ||
+        (user.role === "REVIEWER" && expense.created_by !== user.id && expense.assigned_reviewer === user.id && (
+            (expense.status === "IN_REVIEW" && user.department === expense.department) ||
+            (expense.status === "IN_FINCON_REVIEW" && user.department === "FinCon")
+        )) ||
         (user.role === "APPROVER" && expense.status === "SUBMITTED");
 }
 export function CommentThread({ expense }) {

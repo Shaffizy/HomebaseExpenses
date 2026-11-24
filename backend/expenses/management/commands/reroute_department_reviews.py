@@ -14,11 +14,23 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         with transaction.atomic():
-            pending = list(Expense.objects.select_for_update().filter(status=ExpenseStatus.IN_REVIEW).order_by("pk"))
+            pending = list(
+                Expense.objects.select_for_update()
+                .filter(status__in=[ExpenseStatus.IN_REVIEW, ExpenseStatus.IN_FINCON_REVIEW])
+                .order_by("pk")
+            )
             changes = []
             missing = []
             for expense in pending:
-                reviewers = User.objects.filter(organization_id=expense.organization_id, role=Role.REVIEWER, is_active=True, department=expense.department).exclude(pk=expense.created_by_id).order_by("pk")
+                target_dept = Department.FINCON if expense.status == ExpenseStatus.IN_FINCON_REVIEW else expense.department
+                reviewers = User.objects.filter(
+                    organization_id=expense.organization_id,
+                    role=Role.REVIEWER,
+                    is_active=True,
+                    department=target_dept,
+                ).order_by("pk")
+                if expense.status == ExpenseStatus.IN_REVIEW:
+                    reviewers = reviewers.exclude(pk=expense.created_by_id)
                 reviewer = reviewers.filter(pk=expense.assigned_reviewer_id).first() or reviewers.first()
                 if expense.department not in Department.values or reviewer is None:
                     missing.append(expense.pk)

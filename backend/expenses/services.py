@@ -1,6 +1,7 @@
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.utils import timezone
-from accounts.models import Role, User
+from accounts.models import Department, Role, User
 from expenses.models import Expense, ExpenseStatus, Comment
 from .notifications import notify_next_role
 
@@ -14,12 +15,24 @@ class TransitionError(Exception):
 
 RULES = {
     "submit": {role: {ExpenseStatus.DRAFT, ExpenseStatus.RETURNED} for role in (Role.REQUESTER, Role.REVIEWER)},
-    "review": {Role.REVIEWER: {ExpenseStatus.IN_REVIEW}},
+    "review": {Role.REVIEWER: {ExpenseStatus.IN_REVIEW, ExpenseStatus.IN_FINCON_REVIEW}},
     "approve": {Role.APPROVER: {ExpenseStatus.SUBMITTED}},
-    "return": {Role.APPROVER: {ExpenseStatus.SUBMITTED}, Role.REVIEWER: {ExpenseStatus.IN_REVIEW}},
-    "reject": {Role.APPROVER: {ExpenseStatus.SUBMITTED}, Role.REVIEWER: {ExpenseStatus.IN_REVIEW}},
+    "return": {
+        Role.APPROVER: {ExpenseStatus.SUBMITTED},
+        Role.REVIEWER: {ExpenseStatus.IN_REVIEW, ExpenseStatus.IN_FINCON_REVIEW},
+    },
+    "reject": {
+        Role.APPROVER: {ExpenseStatus.SUBMITTED},
+        Role.REVIEWER: {ExpenseStatus.IN_REVIEW, ExpenseStatus.IN_FINCON_REVIEW},
+    },
 }
-TARGET_STATUS = {"review": ExpenseStatus.SUBMITTED, "submit": ExpenseStatus.SUBMITTED, "approve": ExpenseStatus.APPROVED, "return": ExpenseStatus.RETURNED, "reject": ExpenseStatus.REJECTED}
+TARGET_STATUS = {
+    "review": ExpenseStatus.SUBMITTED,
+    "submit": ExpenseStatus.IN_REVIEW,
+    "approve": ExpenseStatus.APPROVED,
+    "return": ExpenseStatus.RETURNED,
+    "reject": ExpenseStatus.REJECTED,
+}
 REQUIRES_COMMENT = {"return", "reject"}
 
 def current_stage_record(expense):
@@ -38,8 +51,22 @@ def current_stage_comment(expense, user):
 def _resolve_approver(expense):
     return User.objects.filter(organization_id=expense.organization_id, role=Role.APPROVER, is_active=True).first()
 
+def _resolve_fincon_reviewer(expense):
+    return User.objects.filter(
+        organization_id=expense.organization_id,
+        role=Role.REVIEWER,
+        is_active=True,
+        department=Department.FINCON,
+    ).order_by("pk").first()
+
+def calculate_wht_amounts(total: Decimal, wht_classification: str) -> tuple[Decimal, Decimal, Decimal]:
+    rate = Expense.WHT_RATES[wht_classification]
+    wht_amount = (total * rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    net_total = (total - wht_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return rate, wht_amount, net_total
+
 @transaction.atomic
-def transition(expense, user, action, comment=None):
+def transition(expense, user, action, comment=None, wht_classification=None):
     expense = Expense.objects.select_for_update().select_related("organization", "created_by").get(pk=expense.pk)
     if expense.organization_id != user.organization_id:
         raise TransitionError("Not found.", 404)
@@ -71,17 +98,41 @@ def transition(expense, user, action, comment=None):
         if approver is None:
             raise TransitionError("No active approver is configured.", 409)
         expense.assigned_approver = approver
-    if action != "submit" and expense.created_by_id == user.pk:
+    prior_status = expense.status
+    is_own_fincon_wht_review = (
+        action == "review"
+        and prior_status == ExpenseStatus.IN_FINCON_REVIEW
+        and user.role == Role.REVIEWER
+        and user.department == Department.FINCON
+        and expense.assigned_reviewer_id == user.pk
+    )
+    if action != "submit" and expense.created_by_id == user.pk and not is_own_fincon_wht_review:
         raise TransitionError("You cannot review or approve your own expense.", 403)
     if action != "submit" and user.role == Role.REVIEWER and expense.assigned_reviewer_id != user.pk:
         raise TransitionError("Only the assigned reviewer can act.", 403)
-    if action != "submit" and user.role == Role.REVIEWER and (not user.department or user.department != expense.department):
-        raise TransitionError("You can only review expenses in your assigned department.", 403)
+    if action != "submit" and user.role == Role.REVIEWER:
+        if prior_status == ExpenseStatus.IN_REVIEW and (not user.department or user.department != expense.department):
+            raise TransitionError("You can only review expenses in your assigned department.", 403)
+        if prior_status == ExpenseStatus.IN_FINCON_REVIEW and user.department != Department.FINCON:
+            raise TransitionError("Only an active FinCon reviewer can complete the FinCon WHT review.", 403)
     reviewer = None
-    if action == "submit" and user.role == Role.REQUESTER:
-        reviewer = User.objects.filter(organization_id=expense.organization_id, role=Role.REVIEWER, is_active=True, department=user.department).order_by("pk").first()
-        if reviewer is None:
-            raise TransitionError("No active reviewer is configured for your department.", 409)
+    next_status = TARGET_STATUS[action]
+    if action == "submit":
+        if user.role == Role.REQUESTER and user.department != Department.FINCON:
+            reviewer = User.objects.filter(
+                organization_id=expense.organization_id,
+                role=Role.REVIEWER,
+                is_active=True,
+                department=user.department,
+            ).exclude(pk=expense.created_by_id).order_by("pk").first()
+            if reviewer is None:
+                raise TransitionError("No active reviewer is configured for your department.", 409)
+            next_status = ExpenseStatus.IN_REVIEW
+        else:
+            reviewer = _resolve_fincon_reviewer(expense)
+            if reviewer is None:
+                raise TransitionError("No active FinCon reviewer is configured.", 409)
+            next_status = ExpenseStatus.IN_FINCON_REVIEW
     reused = None
     if action in REQUIRES_COMMENT:
         if comment is not None and not isinstance(comment, str):
@@ -91,19 +142,42 @@ def transition(expense, user, action, comment=None):
             if reused is None or not reused.text.strip():
                 raise TransitionError("A comment is required.", 400)
             comment = reused.text
+    if action == "review":
+        if approver is None:
+            raise TransitionError("No active approver is configured.", 409)
+        if prior_status == ExpenseStatus.IN_REVIEW:
+            fincon_reviewer = _resolve_fincon_reviewer(expense)
+            if fincon_reviewer is None:
+                raise TransitionError("No active FinCon reviewer is configured.", 409)
+            expense.reviewed_by = user
+            expense.reviewed_at = timezone.now()
+            expense.assigned_reviewer = fincon_reviewer
+            expense.assigned_approver = approver
+            next_status = ExpenseStatus.IN_FINCON_REVIEW
+        elif prior_status == ExpenseStatus.IN_FINCON_REVIEW:
+            if not isinstance(wht_classification, str) or wht_classification not in Expense.WhtClassification.values:
+                raise TransitionError("Select a valid withholding tax (WHT) classification before forwarding for approval.", 400)
+            rate, wht_amount, net_total = calculate_wht_amounts(expense.total, wht_classification)
+            expense.wht_classification = wht_classification
+            expense.wht_rate = rate
+            expense.wht_amount = wht_amount
+            expense.net_total = net_total
+            expense.fincon_reviewed_by = user
+            expense.fincon_reviewed_at = timezone.now()
+            expense.assigned_approver = approver
+            next_status = ExpenseStatus.SUBMITTED
     expense._actor = user
-    expense.status = TARGET_STATUS[action]
+    expense.status = next_status
     if action == "submit":
         expense.assigned_reviewer = reviewer
         expense.reviewed_by = None
         expense.reviewed_at = None
-        expense.status = ExpenseStatus.IN_REVIEW if reviewer else ExpenseStatus.SUBMITTED
-    if action == "review":
-        if approver is None:
-            raise TransitionError("No active approver is configured.", 409)
-        expense.assigned_approver = approver
-        expense.reviewed_by = user
-        expense.reviewed_at = timezone.now()
+        expense.fincon_reviewed_by = None
+        expense.fincon_reviewed_at = None
+        expense.wht_classification = ""
+        expense.wht_rate = Decimal("0.00")
+        expense.wht_amount = Decimal("0.00")
+        expense.net_total = expense.total
     if action == "approve":
         signer = User.objects.select_for_update().get(pk=user.pk)
         if not signer.is_active or signer.role != Role.APPROVER or signer.is_staff:
@@ -111,7 +185,23 @@ def transition(expense, user, action, comment=None):
         expense.approved_by = user
         expense.approved_at = timezone.now()
         expense.approved_signature_data = signer.signature_data
-    expense.save(update_fields=["status", "updated_at", "assigned_reviewer", "reviewed_by", "reviewed_at", "assigned_approver", "approved_by", "approved_at", "approved_signature_data"])
+    expense.save(update_fields=[
+        "status",
+        "updated_at",
+        "assigned_reviewer",
+        "reviewed_by",
+        "reviewed_at",
+        "fincon_reviewed_by",
+        "fincon_reviewed_at",
+        "wht_classification",
+        "wht_rate",
+        "wht_amount",
+        "net_total",
+        "assigned_approver",
+        "approved_by",
+        "approved_at",
+        "approved_signature_data",
+    ])
     if action in REQUIRES_COMMENT and reused is None:
         stage = current_stage_record(expense)
         Comment.objects.create(expense=expense, author=user, text=comment.strip(), stage_history_id=stage.history_id)
@@ -138,7 +228,11 @@ def can_comment(user, expense):
     if expense.created_by_id == user.pk:
         return user.role in (Role.REQUESTER, Role.REVIEWER) and expense.status == ExpenseStatus.RETURNED
     if user.role == Role.REVIEWER:
-        return bool(user.department) and user.department == expense.department and expense.assigned_reviewer_id == user.pk and expense.status == ExpenseStatus.IN_REVIEW
+        if expense.status == ExpenseStatus.IN_REVIEW:
+            return bool(user.department) and user.department == expense.department and expense.assigned_reviewer_id == user.pk
+        if expense.status == ExpenseStatus.IN_FINCON_REVIEW:
+            return user.department == Department.FINCON and expense.assigned_reviewer_id == user.pk
+        return False
     if user.role == Role.APPROVER:
         approver = _resolve_approver(expense)
         return approver is not None and approver.pk == user.pk and expense.status == ExpenseStatus.SUBMITTED

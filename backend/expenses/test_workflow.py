@@ -11,6 +11,7 @@ def setup(db):
     users = {}
     for role in Role.values:
         users[role] = User.objects.create_user(department="IT", username=role.lower(), email=f"{role.lower()}@example.test", organization=org, role=role, password="Test-Secret-4321!")
+    users["FINCON_REVIEWER"] = User.objects.create_user(department="FinCon", username="fincon_reviewer", email="fincon@example.test", organization=org, role=Role.REVIEWER, password="Test-Secret-4321!")
     category = ExpenseCategory.objects.create(organization=org, name="Office supplies", created_by=users["ADMIN"])
     expense = Expense.objects.create(organization=org, created_by=users["REQUESTER"], expense_number="EXP-1", title="Office supplies", category=category, department="IT", branch="Lagos")
     ExpenseItem.objects.create(expense=expense, description="Paper", quantity=2, unit_price=10)
@@ -82,12 +83,14 @@ def test_comment_reuse_and_approval_fields(setup):
     assert expense.approved_by is None and expense.approved_at is None and expense.status == "DRAFT"
     owner.post(f"/api/expenses/{expense.pk}/submit/", {}, format="json")
     assert api(users["REVIEWER"]).post(f"/api/expenses/{expense.pk}/review/", {}, format="json").status_code == 200
+    assert api(users["FINCON_REVIEWER"]).post(f"/api/expenses/{expense.pk}/review/", {"wht_classification": "RATE_5_TECH_ICT"}, format="json").status_code == 200
     assert approver.post(f"/api/expenses/{expense.pk}/return/", {}, format="json").status_code == 400
     assert approver.post(f"/api/expenses/{expense.pk}/comments/", {"text": "Attach the receipt"}, format="json").status_code == 201
     assert approver.post(f"/api/expenses/{expense.pk}/return/", {}, format="json").status_code == 200
     assert expense.comments.count() == 1
     owner.post(f"/api/expenses/{expense.pk}/submit/", {}, format="json")
     assert api(users["REVIEWER"]).post(f"/api/expenses/{expense.pk}/review/", {}, format="json").status_code == 200
+    assert api(users["FINCON_REVIEWER"]).post(f"/api/expenses/{expense.pk}/review/", {"wht_classification": "RATE_5_TECH_ICT"}, format="json").status_code == 200
     assert approver.post(f"/api/expenses/{expense.pk}/return/", {}, format="json").status_code == 400
     assert approver.post(f"/api/expenses/{expense.pk}/approve/", {}, format="json").status_code == 200
     expense.refresh_from_db()

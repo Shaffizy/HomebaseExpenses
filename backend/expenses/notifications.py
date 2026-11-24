@@ -10,7 +10,7 @@ from django.template.loader import render_to_string
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 
-from accounts.models import Role
+from accounts.models import Department, Role
 from .models import ExpenseStatus
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,14 @@ def public_expense_url(expense):
 
 
 def notify_next_role(expense):
-    if expense.status not in {ExpenseStatus.IN_REVIEW, ExpenseStatus.SUBMITTED, ExpenseStatus.APPROVED, ExpenseStatus.RETURNED, ExpenseStatus.REJECTED}:
+    if expense.status not in {
+        ExpenseStatus.IN_REVIEW,
+        ExpenseStatus.IN_FINCON_REVIEW,
+        ExpenseStatus.SUBMITTED,
+        ExpenseStatus.APPROVED,
+        ExpenseStatus.RETURNED,
+        ExpenseStatus.REJECTED,
+    }:
         return
     requester = expense.created_by
     approver = expense.assigned_approver
@@ -49,16 +56,35 @@ def notify_next_role(expense):
         logger.error("Invalid notification routing for expense %s", expense.pk)
         return
     reviewer = expense.assigned_reviewer
-    in_review = expense.status == ExpenseStatus.IN_REVIEW
+    in_dept_review = expense.status == ExpenseStatus.IN_REVIEW
+    in_fincon_review = expense.status == ExpenseStatus.IN_FINCON_REVIEW
+    in_review = in_dept_review or in_fincon_review
     recipient_owner = reviewer if in_review else approver
-    if in_review and (reviewer is None or not reviewer.is_active or reviewer.role != Role.REVIEWER or reviewer.organization_id != expense.organization_id or not reviewer.department or reviewer.department != expense.department):
+    if in_dept_review and (
+        reviewer is None
+        or not reviewer.is_active
+        or reviewer.role != Role.REVIEWER
+        or reviewer.organization_id != expense.organization_id
+        or not reviewer.department
+        or reviewer.department != expense.department
+    ):
         logger.error("Invalid reviewer routing for expense %s", expense.pk)
         return
+    if in_fincon_review and (
+        reviewer is None
+        or not reviewer.is_active
+        or reviewer.role != Role.REVIEWER
+        or reviewer.organization_id != expense.organization_id
+        or reviewer.department != Department.FINCON
+    ):
+        logger.error("Invalid FinCon reviewer routing for expense %s", expense.pk)
+        return
+    stage = "FinCon review" if in_fincon_review else ("review" if in_dept_review else "approval")
     context = {
         "number": expense.expense_number,
         "requester": requester.get_full_name() or requester.username,
         "approver": recipient_owner.name,
-        "stage": "review" if in_review else "approval",
+        "stage": stage,
         "category": expense.title or (expense.category.name if expense.category else "Untitled expense"),
         "department": expense.department,
         "branch": expense.branch,
@@ -68,7 +94,7 @@ def notify_next_role(expense):
     }
     # Separate messages keep recipients private and allow one delivery to fail
     # without preventing the other recipient's notification.
-    submitted = expense.status in (ExpenseStatus.IN_REVIEW, ExpenseStatus.SUBMITTED)
+    submitted = expense.status in (ExpenseStatus.IN_REVIEW, ExpenseStatus.IN_FINCON_REVIEW, ExpenseStatus.SUBMITTED)
     recipients = ((requester, True), (recipient_owner, False)) if submitted else ((requester, False),)
     for recipient, confirmation in recipients:
         address = recipient.email

@@ -101,13 +101,31 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = (
             Expense.objects.filter(organization=self.request.user.organization)
-            .select_related("created_by", "organization", "assigned_reviewer", "assigned_approver", "approved_by", "category")
+            .select_related(
+                "created_by",
+                "organization",
+                "assigned_reviewer",
+                "reviewed_by",
+                "fincon_reviewed_by",
+                "assigned_approver",
+                "approved_by",
+                "category",
+            )
             .prefetch_related("items")
         )
         if self.request.user.role == Role.REQUESTER:
             queryset = queryset.filter(created_by=self.request.user)
         if self.request.user.role == Role.REVIEWER:
-            queryset = queryset.filter(Q(created_by=self.request.user) | (Q(assigned_reviewer=self.request.user, department=self.request.user.department) & ~Q(department="")))
+            dept = self.request.user.department
+            reviewer_filter = Q(created_by=self.request.user) | (
+                (Q(assigned_reviewer=self.request.user, department=dept) | Q(reviewed_by=self.request.user, department=dept))
+                & ~Q(department="")
+            )
+            if dept == Expense.Department.FINCON:
+                reviewer_filter |= Q(assigned_reviewer=self.request.user, status=ExpenseStatus.IN_FINCON_REVIEW) | Q(
+                    fincon_reviewed_by=self.request.user
+                )
+            queryset = queryset.filter(reviewer_filter)
         if self.action == "list":
             queryset = queryset.defer("approved_signature_data")
         status_param = self.request.query_params.get("status")
@@ -127,13 +145,21 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         return Response({
             "departments": [{"value": value, "label": label} for value, label in Expense.Department.choices],
             "branches": [{"value": value, "label": label} for value, label in Expense.Branch.choices],
+            "wht_classifications": [
+                {"value": value, "label": label, "rate": f"{Expense.WHT_RATES[value]:.2f}"}
+                for value, label in Expense.WhtClassification.choices
+            ],
         })
 
     def _run_action(self, request, action_name: str):
         expense = self.get_object()
         try:
             expense = transition(
-                expense, request.user, action_name, comment=request.data.get("comment")
+                expense,
+                request.user,
+                action_name,
+                comment=request.data.get("comment"),
+                wht_classification=request.data.get("wht_classification"),
             )
         except TransitionError as exc:
             return Response({"detail": exc.message}, status=exc.status_code)

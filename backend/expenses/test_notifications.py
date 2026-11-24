@@ -18,6 +18,7 @@ def ticket(db):
     expense = Expense.objects.create(organization=org, created_by=owner, expense_number="EXP-MAIL", title="Supplies <script>bad()</script>", category=category, department="IT", branch="Lagos", total="20.00")
     ExpenseItem.objects.create(expense=expense, description="Paper", quantity=2, unit_price=10)
     User.objects.create_user(department="IT", username="reviewer", email="reviewer@example.test", organization=org, role=Role.REVIEWER)
+    User.objects.create_user(department="FinCon", username="fincon", email="fincon@example.test", organization=org, role=Role.REVIEWER)
     return expense, owner, approver
 
 
@@ -93,6 +94,7 @@ def test_decisions_notify_requester_from_application_sender(ticket, django_captu
     with django_capture_on_commit_callbacks(execute=True):
         expense = transition(expense, owner, "submit")
         expense = transition(expense, User.objects.get(username="reviewer"), "review")
+        expense = transition(expense, User.objects.get(username="fincon"), "review", wht_classification="NON_TAXABLE_0")
     mail.outbox.clear()
     with django_capture_on_commit_callbacks(execute=True):
         transition(expense, approver, action, comment="Reason")

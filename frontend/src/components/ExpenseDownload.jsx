@@ -40,7 +40,10 @@ export async function createExpensePdf(expense, logoData) {
     });
     const rows = expense.items.map((item, index) => [String(index + 1), item.description, String(item.quantity), money(item.unit_price), money(item.line_total)]);
     while (rows.length < 5) rows.push(["", "", "", "", ""]);
-    rows.push([{ content: "OVERALL COST", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, { content: money(expense.total), styles: { fontStyle: "bold" } }]);
+    const whtLabel = "WITHHOLDING TAX (" + (expense.wht_rate ?? "0.00") + "%" + (expense.wht_classification_label ? " - " + expense.wht_classification_label : "") + ")";
+    rows.push([{ content: "GROSS TOTAL (OVERALL COST)", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, { content: money(expense.total), styles: { fontStyle: "bold" } }]);
+    rows.push([{ content: whtLabel, colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, { content: "-" + money(expense.wht_amount ?? "0.00"), styles: { fontStyle: "bold" } }]);
+    rows.push([{ content: "NET PAYABLE", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, { content: money(expense.net_total ?? expense.total), styles: { fontStyle: "bold" } }]);
     autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 4,
         margin: { left: 10, right: 10, top: 10, bottom: 12 },
@@ -51,10 +54,13 @@ export async function createExpensePdf(expense, logoData) {
         columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 82 }, 2: { cellWidth: 26, halign: "right" }, 3: { cellWidth: 35, halign: "right" }, 4: { cellWidth: 37, halign: "right" } },
     });
     const approvalTime = expense.approved_at ? new Date(expense.approved_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" }) : "Not recorded";
+    const netAmount = expense.net_total ?? expense.total;
     const summary = [
-        [{ content: "AMOUNT IN WORDS: " + amountInWords(expense.total), styles: { lineColor: 40, lineWidth: { bottom: 0.2 } } }],
+        [{ content: "NET PAYABLE IN WORDS: " + amountInWords(netAmount), styles: { lineColor: 40, lineWidth: { bottom: 0.2 } } }],
         ["APPROVAL: APPROVED"],
         expense.approved_signature_data ? [{ content: "", styles: { minCellHeight: 14 } }] : ["Signature: not recorded"],
+        ...(expense.reviewed_by_name ? [["Departmental review by: " + expense.reviewed_by_name]] : []),
+        ...(expense.fincon_reviewed_by_name ? [["FinCon WHT review by: " + expense.fincon_reviewed_by_name]] : []),
         ["Approved by: " + (expense.approved_by_name || "Not recorded")],
         ["Approval date: " + approvalTime + " (Lagos time)"],
         [expense.approved_signature_data ? "Electronic approval record with the signature saved at approval." : "Electronic approval record. No signature was saved at approval."],

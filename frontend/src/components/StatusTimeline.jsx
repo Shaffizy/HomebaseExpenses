@@ -19,6 +19,7 @@ export function buildTimeline(history, expense) {
 const DOT = {
     DRAFT: "bg-[#a3a3a3]",
     IN_REVIEW: "bg-[#e0e7ff] text-[#3730a3]",
+    IN_FINCON_REVIEW: "bg-[#a855f7]",
     SUBMITTED: "bg-[#60a5fa]",
     APPROVED: "bg-[#22c55e]",
     RETURNED: "bg-[#f59e0b]",

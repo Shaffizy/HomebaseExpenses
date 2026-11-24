@@ -13,8 +13,9 @@ def setup_review(settings):
     settings.EMAIL_TEST_MODE = False
     org = Organization.objects.create(name="Review bank")
     users = {role: User.objects.create_user(department="IT", username=role.lower(), email=f"{role.lower()}@example.test", organization=org, role=role, password="Original-Secret-432!") for role in Role.values}
-    expense = Expense.objects.create(organization=org, created_by=users[Role.REQUESTER], expense_number="EXP-REVIEW", title="Supplies", department="IT", branch="Lagos")
-    ExpenseItem.objects.create(expense=expense, description="Paper", quantity=1, unit_price=10)
+    users["FINCON_REVIEWER"] = User.objects.create_user(department="FinCon", username="fincon-reviewer", email="fincon@example.test", organization=org, role=Role.REVIEWER, password="Original-Secret-432!")
+    expense = Expense.objects.create(organization=org, created_by=users[Role.REQUESTER], expense_number="EXP-REVIEW", title="Supplies", department="IT", branch="Lagos", total="1000.00")
+    ExpenseItem.objects.create(expense=expense, description="Paper", quantity=1, unit_price=1000)
     return org, users, expense
 
 def test_requester_review_then_approval(setup_review, django_capture_on_commit_callbacks, settings):
@@ -32,20 +33,56 @@ def test_requester_review_then_approval(setup_review, django_capture_on_commit_c
         transition(expense, users[Role.APPROVER], "approve")
     with django_capture_on_commit_callbacks(execute=True):
         expense = transition(expense, users[Role.REVIEWER], "review")
-    assert expense.status == ExpenseStatus.SUBMITTED
+    assert expense.status == ExpenseStatus.IN_FINCON_REVIEW
     assert expense.reviewed_by == users[Role.REVIEWER]
+    assert expense.assigned_reviewer == users["FINCON_REVIEWER"]
+    assert mail.outbox[-1].to == [users["FINCON_REVIEWER"].email]
+    assert "for your FinCon review" in mail.outbox[-1].body
+    with pytest.raises(TransitionError):
+        transition(expense, users["FINCON_REVIEWER"], "review")
+    with django_capture_on_commit_callbacks(execute=True):
+        expense = transition(expense, users["FINCON_REVIEWER"], "review", wht_classification="RATE_2_NETWORK_DATA")
+    assert expense.status == ExpenseStatus.SUBMITTED
+    assert expense.fincon_reviewed_by == users["FINCON_REVIEWER"]
+    assert str(expense.wht_rate) == "2.00"
+    assert str(expense.wht_amount) == "20.00"
+    assert str(expense.net_total) == "980.00"
     assert mail.outbox[-1].to == [users[Role.APPROVER].email]
     assert transition(expense, users[Role.APPROVER], "approve").status == ExpenseStatus.APPROVED
 
-def test_reviewer_own_expense_skips_review(setup_review):
+def test_reviewer_own_expense_skips_departmental_review_and_routes_to_fincon(setup_review):
     org, users, expense = setup_review
     expense.created_by = users[Role.REVIEWER]
     expense.save()
     expense = transition(expense, users[Role.REVIEWER], "submit")
-    assert expense.status == ExpenseStatus.SUBMITTED
-    assert expense.assigned_reviewer is None
+    assert expense.status == ExpenseStatus.IN_FINCON_REVIEW
+    assert expense.assigned_reviewer == users["FINCON_REVIEWER"]
     with pytest.raises(TransitionError):
-        transition(expense, users[Role.REVIEWER], "review")
+        transition(expense, users[Role.REVIEWER], "review", wht_classification="NON_TAXABLE_0")
+    expense = transition(expense, users["FINCON_REVIEWER"], "review", wht_classification="RATE_10_RENT_LEASE")
+    assert expense.status == ExpenseStatus.SUBMITTED
+    assert str(expense.wht_amount) == "100.00"
+    assert str(expense.net_total) == "900.00"
+    assert transition(expense, users[Role.APPROVER], "approve").status == ExpenseStatus.APPROVED
+
+def test_fincon_reviewer_own_expense_calculates_wht_and_goes_to_approver(setup_review):
+    org, users, expense = setup_review
+    fincon = users["FINCON_REVIEWER"]
+    expense.created_by = fincon
+    expense.department = "FinCon"
+    expense.save()
+    expense = transition(expense, fincon, "submit")
+    assert expense.status == ExpenseStatus.IN_FINCON_REVIEW
+    assert expense.assigned_reviewer == fincon
+    with pytest.raises(TransitionError):
+        transition(expense, fincon, "return", comment="Cannot return to self")
+    with pytest.raises(TransitionError):
+        transition(expense, fincon, "reject", comment="Cannot reject self")
+    expense = transition(expense, fincon, "review", wht_classification="RATE_5_PROFESSIONAL")
+    assert expense.status == ExpenseStatus.SUBMITTED
+    assert str(expense.wht_rate) == "5.00"
+    assert str(expense.wht_amount) == "50.00"
+    assert str(expense.net_total) == "950.00"
     assert transition(expense, users[Role.APPROVER], "approve").status == ExpenseStatus.APPROVED
 
 @pytest.mark.parametrize("action", ["return", "reject"])
@@ -91,13 +128,14 @@ def test_reviewer_can_create_expense(setup_review):
     client.force_authenticate(users[Role.REVIEWER])
     response = client.post("/api/expenses/", {"title": "Reviewer travel", "department": "IT", "branch": "Lagos", "items": [{"description": "Taxi", "quantity": "1", "unit_price": "100"}]}, format="json")
     assert response.status_code == 201, response.data
-    assert client.post(f"/api/expenses/{response.data['id']}/submit/").data['status'] == "SUBMITTED"
+    assert client.post(f"/api/expenses/{response.data['id']}/submit/").data['status'] == "IN_FINCON_REVIEW"
 
 
 def test_logging_in_other_accounts_does_not_approve_expense(setup_review):
     org, users, expense = setup_review
     expense = transition(expense, users[Role.REQUESTER], "submit")
     expense = transition(expense, users[Role.REVIEWER], "review")
+    expense = transition(expense, users["FINCON_REVIEWER"], "review", wht_classification="NON_TAXABLE_0")
     history_count = expense.history.count()
     browsers = {}
     for role in (Role.REQUESTER, Role.APPROVER):

@@ -64,3 +64,20 @@ Expense name is no longer shown or required in the form. Category is required in
 Login tokens now use tab-specific sessionStorage, instead of browser-wide localStorage. Each tab can sign into a different account. Opening a new tab may initially inherit the opener's session depending on browser behavior, but subsequent login changes remain isolated. Account changes clear the query cache. Late responses and token refreshes from a previous login are discarded; a failed action is never retried under a newly signed-in account. Approve opens a confirmation showing the expense reference and acting user's name.
 
 Deploy by pulling, rebuilding frontend and restarting HB-expenses-api as usual. No database migration is needed. Close all old Homebase tabs after deployment and open fresh ones, then sign in separately in each. Old browser-wide credentials are not imported. Session credentials last for that tab's session, subject to existing token expiration. This fixes an account-mixing issue; it is not evidence that any reported live expense was automatically approved. Check the affected expense History for the actor and transition before altering records.
+
+## Departmental Reviewer -> FinCon WHT Review -> Approver update (2026-11-24)
+
+Workflow now requires every expense to pass through:
+1. **Departmental Reviewer** (`IN_REVIEW` / *Awaiting review*): active `REVIEWER` in the requester's assigned department reviews and forwards to FinCon.
+2. **FinCon Reviewer** (`IN_FINCON_REVIEW` / *Awaiting FinCon review*): active `REVIEWER` in the `FinCon` department selects the Nigeria Withholding Tax (WHT) classification tier (`0%` Non-Taxable, `2%`, `5%`, `10%`, `20%`), which server-calculates `wht_rate`, `wht_amount`, and `net_total = total - wht_amount` and forwards to the organization's `APPROVER`.
+3. **Approver** (`SUBMITTED` / *Awaiting approval* -> `APPROVED`): approves the expense with Gross Total, Withholding Tax, and Net Payable shown on the detail page, printable ticket, and downloadable PDF slip.
+
+- Expenses created by a non-FinCon Departmental Reviewer go directly to `IN_FINCON_REVIEW` -> `APPROVER`.
+- Expenses created by a `FinCon` Requester or `FinCon` Reviewer go to `IN_FINCON_REVIEW` (where the FinCon Reviewer enters WHT and forwards to `APPROVER`).
+- Adds migration `expenses.0014_expense_fincon_reviewed_at_and_more`.
+
+On the server:
+1. Back up the database in SSMS and stop `HB-expenses-api`.
+2. Pull the release and run `.\.venv314_new\Scripts\python.exe manage.py migrate` as Administrator.
+3. Build the frontend (`npm ci` and `npm run build`) and deploy `frontend/dist` while preserving IIS read permissions.
+4. Restart `HB-expenses-api` and ensure at least one active `REVIEWER` is assigned to the `FinCon` department in User management.

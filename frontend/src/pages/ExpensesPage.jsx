@@ -73,11 +73,18 @@ export function ExpensesPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3.5 text-sm font-medium text-black/70">
-                      {expense.assigned_approver_name ?? (<span className="text-black/35">— Default —</span>)}
+                      {(["IN_REVIEW", "IN_FINCON_REVIEW"].includes(expense.status)
+                          ? expense.assigned_reviewer_name
+                          : expense.assigned_approver_name) ?? (<span className="text-black/35">— Default —</span>)}
                     </td>
                     <td className="px-4 py-3.5 text-sm text-black/70">{expense.department}</td>
                     <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold tabular-nums text-[var(--color-ink)]">
-                      {formatMoney(expense.currency, expense.total)}
+                      <div>{formatMoney(expense.currency, expense.net_total ?? expense.total)}</div>
+                      {Number(expense.wht_amount ?? 0) > 0 && (
+                        <div className="text-[11px] font-normal text-black/45">
+                          Gross: {formatMoney(expense.currency, expense.total)} · WHT ({expense.wht_rate}%): -{formatMoney(expense.currency, expense.wht_amount)}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 font-mono text-xs text-black/55">{expense.branch ?? "—"}</td>
                     <td className="px-4 py-3.5">

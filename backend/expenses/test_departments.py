@@ -24,7 +24,10 @@ def test_routes_to_own_department_not_first_reviewer(setup_review, django_captur
     assert expense.assigned_reviewer == right
     assert mail.outbox[-1].to == [right.email]
     assert client(wrong).get(f"/api/expenses/{expense.pk}/").status_code == 404
-    assert transition(expense, right, "review").status == ExpenseStatus.SUBMITTED
+    assert transition(expense, right, "review").status == ExpenseStatus.IN_FINCON_REVIEW
+    assert client(right).get(f"/api/expenses/{expense.pk}/").status_code == 200
+    assert client(users["FINCON_REVIEWER"]).get(f"/api/expenses/{expense.pk}/").status_code == 200
+    assert transition(expense, users["FINCON_REVIEWER"], "review", wht_classification="RATE_2_SUPPLY_GOODS").status == ExpenseStatus.SUBMITTED
 
 @pytest.mark.parametrize("department", ["", "Legal"])
 def test_no_fallback_to_other_department(setup_review, department, django_capture_on_commit_callbacks):
@@ -105,7 +108,7 @@ def test_reviewer_own_expense_still_goes_direct_to_approver(setup_review):
     expense.created_by = users[Role.REVIEWER]
     expense.save()
     result = transition(expense, users[Role.REVIEWER], 'submit')
-    assert result.status == ExpenseStatus.SUBMITTED and result.assigned_reviewer is None
+    assert result.status == ExpenseStatus.IN_FINCON_REVIEW and result.assigned_reviewer == users["FINCON_REVIEWER"]
 
 
 def test_pending_review_reroute_is_previewed_and_scoped(setup_review):

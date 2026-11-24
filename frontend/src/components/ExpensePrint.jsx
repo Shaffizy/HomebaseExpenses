@@ -72,11 +72,17 @@ export function ExpenseTicket({ expense, logoUrl }) {
             <tbody>{expense.items.map((item, index) => <tr key={item.id ?? index}><td>{index + 1}</td><td>{item.description}</td><td className="number">{item.quantity}</td><td className="number">{money(item.unit_price)}</td><td className="number">{money(item.line_total)}</td></tr>)}
                 {Array.from({ length: Math.max(0, 5 - expense.items.length) }, (_, index) => <tr key={"blank-" + index}><td>&nbsp;</td><td/><td/><td/><td/></tr>)}
             </tbody>
-            <tfoot><tr><td colSpan={4} className="number">OVERALL COST</td><td className="number">{money(expense.total)}</td></tr></tfoot>
+            <tfoot>
+                <tr><td colSpan={4} className="number">GROSS TOTAL (OVERALL COST)</td><td className="number">{money(expense.total)}</td></tr>
+                <tr><td colSpan={4} className="number">WITHHOLDING TAX ({expense.wht_rate ?? "0.00"}%{expense.wht_classification_label ? " — " + expense.wht_classification_label : ""})</td><td className="number">-{money(expense.wht_amount ?? "0.00")}</td></tr>
+                <tr><td colSpan={4} className="number">NET PAYABLE</td><td className="number">{money(expense.net_total ?? expense.total)}</td></tr>
+            </tfoot>
         </table>
-        <div className="words"><strong>AMOUNT IN WORDS:</strong> {amountInWords(expense.total)}</div>
+        <div className="words"><strong>NET PAYABLE IN WORDS:</strong> {amountInWords(expense.net_total ?? expense.total)}</div>
         <section className="approval"><strong>APPROVAL: APPROVED</strong>
             {expense.approved_signature_data ? <img className="signature" src={expense.approved_signature_data} alt="Approver signature"/> : <p>Signature: not recorded</p>}
+            {expense.reviewed_by_name && <p>Departmental review by: {expense.reviewed_by_name}</p>}
+            {expense.fincon_reviewed_by_name && <p>FinCon WHT review by: {expense.fincon_reviewed_by_name}</p>}
             <p>Approved by: {expense.approved_by_name || "Not recorded"}</p><p>Approval date: {approvedDate} (Lagos time)</p>
             <p className="note">{expense.approved_signature_data ? "Electronic approval record with the signature saved at approval." : "Electronic approval record. No signature was saved at approval."}</p>
         </section>

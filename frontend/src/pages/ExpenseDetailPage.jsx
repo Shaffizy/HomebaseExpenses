@@ -118,11 +118,43 @@ export function ExpenseDetailPage() {
                   <dd className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{expense.currency}</dd>
                 </div>
                 <div>
-                  <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">Total</dt>
+                  <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">Gross Total</dt>
                   <dd className="mt-1 font-mono text-sm font-bold tabular-nums text-[var(--color-ink)]">
                     {formatMoney(expense.currency, expense.total)}
                   </dd>
                 </div>
+                {expense.wht_classification && (
+                  <>
+                    <div>
+                      <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">Withholding Tax ({expense.wht_rate}%)</dt>
+                      <dd className="mt-1 font-mono text-sm font-bold tabular-nums text-[var(--color-wine)]">
+                        -{formatMoney(expense.currency, expense.wht_amount)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">Net Payable</dt>
+                      <dd className="mt-1 font-mono text-sm font-extrabold tabular-nums text-[var(--color-ink)]">
+                        {formatMoney(expense.currency, expense.net_total)}
+                      </dd>
+                    </div>
+                    <div className="col-span-2 sm:col-span-3">
+                      <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">WHT Classification</dt>
+                      <dd className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{expense.wht_classification_label}</dd>
+                    </div>
+                  </>
+                )}
+                {expense.reviewed_by_name && (
+                  <div>
+                    <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">Dept Reviewer</dt>
+                    <dd className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{expense.reviewed_by_name}</dd>
+                  </div>
+                )}
+                {expense.fincon_reviewed_by_name && (
+                  <div>
+                    <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">FinCon Reviewer</dt>
+                    <dd className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{expense.fincon_reviewed_by_name}</dd>
+                  </div>
+                )}
                 <div>
                   <dt className="font-mono text-[11px] font-bold uppercase tracking-normal text-black/40">Created</dt>
                   <dd className="mt-1 text-sm font-semibold text-[var(--color-ink)]">
@@ -164,12 +196,32 @@ export function ExpenseDetailPage() {
                   <tfoot>
                     <tr className="border-t-2 border-[var(--color-ink)] bg-[var(--color-linen)]">
                       <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-normal text-black/60">
-                        Overall Cost
+                        Gross Total (Overall Cost)
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono text-sm font-extrabold tabular-nums text-[var(--color-ink)]">
                         {formatMoney(expense.currency, expense.total)}
                       </td>
                     </tr>
+                    {expense.wht_classification && (
+                      <>
+                        <tr className="border-t border-[var(--color-line)] bg-[var(--color-linen)]/70">
+                          <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase tracking-normal text-black/60">
+                            Withholding Tax ({expense.wht_rate}%) — {expense.wht_classification_label}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono text-sm font-bold tabular-nums text-[var(--color-wine)]">
+                            -{formatMoney(expense.currency, expense.wht_amount)}
+                          </td>
+                        </tr>
+                        <tr className="border-t-2 border-[var(--color-ink)] bg-[var(--color-linen)]">
+                          <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-normal text-[var(--color-ink)]">
+                            Net Payable
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm font-extrabold tabular-nums text-[var(--color-ink)]">
+                            {formatMoney(expense.currency, expense.net_total)}
+                          </td>
+                        </tr>
+                      </>
+                    )}
                   </tfoot>
                 </table>
               </div>

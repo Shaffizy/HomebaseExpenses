@@ -24,7 +24,8 @@ export function EmptyState({ title, description, action, }) {
 }
 const STATUS_STYLES = {
     DRAFT: "bg-[#f1ead8] text-[#5a4a1e] ring-[#e6d9b8]",
-    IN_REVIEW: "bg-[#e0e7ff] text-[#3730a3]",
+    IN_REVIEW: "bg-[#e0e7ff] text-[#3730a3] ring-[#c7d2fe]",
+    IN_FINCON_REVIEW: "bg-[#f3e8ff] text-[#6b21a8] ring-[#e9d5ff]",
     SUBMITTED: "bg-[#dbeafe] text-[#1e3a5f] ring-[#bfdbfe]",
     APPROVED: "bg-[#dcfce7] text-[#14532d] ring-[#bbf7d0]",
     RETURNED: "bg-[#fef3c7] text-[#7a3d00] ring-[#fde68a]",
