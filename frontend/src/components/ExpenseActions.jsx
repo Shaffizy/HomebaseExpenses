@@ -5,6 +5,7 @@ import toast from "../lib/notifications";
 import { approveExpense, closeExpense, errorMessage, rejectExpense, returnExpense, api, } from "../lib/api";
 import { calculateWhtBreakdown, DEFAULT_WHT_CLASSIFICATIONS } from "../lib/expenseCosts";
 import { useAuth } from "../auth/AuthContext";
+import { StyledSelect } from "./StyledSelect";
 import { Modal } from "./ui";
 const ACTIONS = {
     review: { key: "review", label: "Forward to FinCon", confirmTitle: "Complete departmental review", style: "bg-[var(--color-moss)] text-white", needsComment: false },
@@ -43,7 +44,7 @@ export function availableActions(role, status, isOwner = false) {
         return isOwner ? [] : [ACTIONS.review, ACTIONS.reject, ACTIONS.return];
     }
     if (role === "REVIEWER" && status === "IN_FINCON_REVIEW") {
-        return isOwner ? [ACTIONS.finconReview] : [ACTIONS.finconReview, ACTIONS.reject, ACTIONS.return];
+        return isOwner ? [ACTIONS.finconReview] : [ACTIONS.finconReview, ACTIONS.return];
     }
     if (role === "APPROVER" && status === "SUBMITTED")
         return isOwner ? [] : [ACTIONS.approve, ACTIONS.reject, ACTIONS.return];
@@ -179,22 +180,23 @@ export function ExpenseActions({ expense, role }) {
             Select the Nigeria Withholding Tax (WHT) classification for <strong>{expense.expense_number}</strong> ({expense.category_name}).
           </p>
           <div>
-            <label htmlFor="wht-classification" className="block text-xs font-bold uppercase tracking-normal text-black/55">
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-normal text-black/55">
               WHT Classification &amp; Rate <span className="text-[var(--color-wine)]">*</span>
             </label>
-            <select
-              id="wht-classification"
+            <StyledSelect
+              label="WHT Classification & Rate"
+              placeholder="Select WHT classification..."
               value={whtClassification}
-              onChange={(e) => setWhtClassification(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2.5 text-sm font-medium text-[var(--color-ink)] focus:border-[var(--color-rust)] focus:outline-none focus:ring-2 focus:ring-[var(--color-rust)]/15"
-            >
-              <option value="">Select WHT classification...</option>
-              {whtClassifications.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              onChange={setWhtClassification}
+              options={[
+                { value: "", label: "Select WHT classification..." },
+                ...whtClassifications.map((item) => ({
+                  value: item.value,
+                  label: item.label,
+                  badge: `${Number(item.rate)}%`,
+                })),
+              ]}
+            />
           </div>
           <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-linen)]/60 p-3.5 text-sm space-y-2">
             <div className="flex items-center justify-between">
