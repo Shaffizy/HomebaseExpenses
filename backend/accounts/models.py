@@ -53,8 +53,10 @@ class User(AbstractUser):
         self.is_staff = self.role == Role.ADMIN
         if self.role != Role.ADMIN:
             self.is_superuser = False
+        if self.role in (Role.APPROVER, Role.ADMIN):
+            self.department = ""
         if kwargs.get("update_fields") is not None:
-            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"is_staff", "is_superuser"}
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"is_staff", "is_superuser", "department"}
         super().save(*args, **kwargs)
 
     # Throttle login attempts per user before a short cooldown kicks in.

@@ -1,8 +1,21 @@
 {% if test_mode %}Homebase expense workflow - TEST update{% else %}Homebase Mortgage Bank - Expense Update{% endif %}
+============================================================
 
 Expense {{ number }} has been {{ status|lower }}.
-Expense name: {{ category }}
-Total: NGN {{ total }}
 
-{% if url %}View the decision and comments (sign-in required): {{ url }}{% else %}Review expense {{ number }} in the Homebase application. Please sign in to the Homebase Expenses application to view the request.{% endif %}
+EXPENSE SUMMARY
+------------------------------------------------------------
+Expense number: {{ number }}
+Expense name: {{ category }}
+Department: {{ department }}
+Branch: {{ branch }}
+Total: NGN {{ total }}{% if has_wht %}
+Withholding Tax ({{ wht_rate }}%): -NGN {{ wht_amount }}
+WHT Classification: {{ wht_classification }}
+Net Payable: NGN {{ net_total }}{% endif %}
+Status: {{ status }}
+------------------------------------------------------------
+
+{% if url %}View the decision and comments in Homebase Portal (sign-in required):
+{{ url }}{% else %}Review expense {{ number }} in the Homebase application. Please sign in to the Homebase Expenses application to view the request.{% endif %}
 {% if test_mode %}This is a development test sent by the configured test mailbox, not a production bank notification.{% endif %}

@@ -25,6 +25,9 @@ function validationMessage(value) {
     [/already exists|must be unique|username conflict/i, "This value is already in use."],
     [/only one active approver|there can be only one active approver|active approver already exists/i, "An active approver already exists. Update the existing account instead."],
     [/no active approver/i, "Ask an administrator to assign an approver before submitting."],
+    [/no active fincon reviewer/i, "Ask an administrator to assign a FinCon reviewer before continuing."],
+    [/no active reviewer.*department/i, "Ask an administrator to assign a reviewer for your department before submitting."],
+    [/assign your department before submitting/i, "Ask an administrator to assign your department before submitting."],
     [/comment.*required|reason.*required/i, "Add a comment before continuing."],
     [/at least one item/i, "Add at least one line item."],
     [/enter an expense name/i, "Enter an expense name before submitting."],
@@ -79,7 +82,10 @@ export function errorMessage(error) {
   if (status === 401) return login ? "The username or email and password don't match. Please try again." : "Your session has expired. Please sign in again.";
   if (status === 403) return "You don't have permission to do that.";
   if (status === 404 || status === 410) return "This item is no longer available. Refresh the page to continue.";
-  if (status === 409) return "This expense has changed. Refresh the page before trying again.";
+  if (status === 409) {
+    const messages = [...new Set(collectMessages(error.response?.data))].slice(0, 3);
+    return messages.length ? messages.join(" ") : "This expense has changed. Refresh the page before trying again.";
+  }
   if (status === 413) return "That file is too large. Choose a smaller file.";
   if (status === 429) return login ? "Too many sign-in attempts. Please wait a few minutes before trying again." : "Please wait a little before trying again.";
   if (status >= 500) return "Homebase is temporarily unavailable. Please try again shortly.";

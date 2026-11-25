@@ -43,6 +43,8 @@ class AccountRules:
         department = attrs.get("department", user.department if user else "")
         if role in (Role.REQUESTER, Role.REVIEWER) and department not in Department.values:
             raise serializers.ValidationError({"department": "Assign a department to this requester or reviewer."})
+        if role in (Role.APPROVER, Role.ADMIN):
+            attrs["department"] = ""
         if role == Role.APPROVER and active:
             others = User.objects.filter(organization=admin.organization, role=Role.APPROVER, is_active=True)
             if user:

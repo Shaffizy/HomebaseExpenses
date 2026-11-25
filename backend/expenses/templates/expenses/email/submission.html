@@ -1,11 +1,107 @@
 <!doctype html>
-<html><body style="font-family:Arial,sans-serif;color:#222;line-height:1.6">
-<h2>{% if test_mode %}Homebase expense workflow - TEST{% else %}Homebase Mortgage Bank{% endif %}</h2>
-{% if confirmation %}<p>Your expense <strong>{{ number }}</strong> was submitted successfully.</p>
-<p>It has been sent to {{ approver }} for {{ stage }}.</p>
-{% else %}<p>{{ requester }} submitted expense <strong>{{ number }}</strong> for your {{ stage }}.</p>{% endif %}
-<p>Expense name: {{ category }}<br>Department: {{ department }}<br>Branch: {{ branch }}<br>
-Total: NGN {{ total }}<br>Status: {{ status }}</p>
-{% if url %}<p><a href="{{ url }}">View expense</a> (sign-in required)</p>{% else %}<p>Review expense {{ number }} in the Homebase application. Please sign in to the Homebase Expenses application to view the request.</p>{% endif %}
-<p>{% if test_mode %}This is a development test sent by the configured test mailbox, not a production bank notification.{% else %}This is an automated Homebase expense notification.{% endif %}</p>
-</body></html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f7f8fa;font-family:'Segoe UI',Arial,sans-serif;color:#1b1b1b;line-height:1.6;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f7f8fa;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background-color:#ffffff;border:1px solid #e3e5e8;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(14,26,46,0.06);">
+          <tr>
+            <td style="height:5px;background-color:#e6171d;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px 20px 32px;border-bottom:1px solid #e3e5e8;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e6171d;margin-bottom:4px;">
+                {% if test_mode %}Homebase Expense Workflow &middot; TEST{% else %}Homebase Mortgage Bank Ltd{% endif %}
+              </div>
+              <h2 style="margin:0;font-size:20px;font-weight:800;color:#1b1b1b;">
+                {% if confirmation %}Expense Submitted{% else %}Action Required: Expense {{ stage|capfirst }}{% endif %}
+              </h2>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px;">
+              {% if confirmation %}
+                <p style="margin:0 0 12px 0;font-size:15px;color:#1b1b1b;">
+                  Your expense <strong>{{ number }}</strong> was submitted successfully.
+                </p>
+                <p style="margin:0 0 20px 0;font-size:14px;color:#4b5563;">
+                  It has been sent to <strong>{{ approver }}</strong> for {{ stage }}.
+                </p>
+              {% else %}
+                <p style="margin:0 0 20px 0;font-size:15px;color:#1b1b1b;">
+                  <strong>{{ requester }}</strong> submitted expense <strong>{{ number }}</strong> for your {{ stage }}.
+                </p>
+              {% endif %}
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;width:40%;">Reference No.</td>
+                  <td style="padding:6px 0;font-size:14px;font-weight:700;font-family:Consolas,monospace;color:#1b1b1b;">{{ number }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;">Expense Name</td>
+                  <td style="padding:6px 0;font-size:14px;font-weight:600;color:#1b1b1b;">{{ category }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;">Requested By</td>
+                  <td style="padding:6px 0;font-size:14px;color:#1b1b1b;">{{ requester }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;">Department &amp; Branch</td>
+                  <td style="padding:6px 0;font-size:14px;color:#1b1b1b;">{{ department }} &middot; {{ branch }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;">Gross Total</td>
+                  <td style="padding:6px 0;font-size:14px;font-weight:700;font-family:Consolas,monospace;color:#1b1b1b;">NGN {{ total }}</td>
+                </tr>
+                {% if has_wht %}
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;">Withholding Tax ({{ wht_rate }}%)</td>
+                  <td style="padding:6px 0;font-size:14px;font-weight:700;font-family:Consolas,monospace;color:#b91c1c;">-NGN {{ wht_amount }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#1b1b1b;">Net Payable</td>
+                  <td style="padding:6px 0;font-size:15px;font-weight:800;font-family:Consolas,monospace;color:#17734b;">NGN {{ net_total }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;">Status</td>
+                  <td style="padding:6px 0;font-size:13px;font-weight:700;color:#1b1b1b;">{{ status }}</td>
+                </tr>
+              </table>
+
+              {% if url %}
+                <div style="margin:24px 0 16px 0;">
+                  <a href="{{ url }}" style="display:inline-block;background-color:#e6171d;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;">
+                    Open Expense in Homebase Portal &rarr;
+                  </a>
+                </div>
+                <p style="margin:0;font-size:12px;color:#6b7280;">
+                  Direct server link (sign-in required): <a href="{{ url }}" style="color:#e6171d;text-decoration:underline;word-break:break-all;">{{ url }}</a>
+                </p>
+              {% else %}
+                <p style="margin:0;font-size:13px;color:#4b5563;">
+                  Review expense {{ number }} in the Homebase application. Please sign in to the Homebase Expenses application to view the request.
+                </p>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;background-color:#f3f4f6;border-top:1px solid #e3e5e8;font-size:12px;color:#6b7280;">
+              {% if test_mode %}
+                This is a development test sent by the configured test mailbox, not a production bank notification.
+              {% else %}
+                This is an automated Homebase Mortgage Bank expense notification. Please do not share your login credentials.
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

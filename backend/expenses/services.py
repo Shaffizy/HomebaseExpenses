@@ -23,7 +23,7 @@ RULES = {
     },
     "reject": {
         Role.APPROVER: {ExpenseStatus.SUBMITTED},
-        Role.REVIEWER: {ExpenseStatus.IN_REVIEW, ExpenseStatus.IN_FINCON_REVIEW},
+        Role.REVIEWER: {ExpenseStatus.IN_REVIEW},
     },
 }
 TARGET_STATUS = {
@@ -110,6 +110,8 @@ def transition(expense, user, action, comment=None, wht_classification=None):
         raise TransitionError("You cannot review or approve your own expense.", 403)
     if action != "submit" and user.role == Role.REVIEWER and expense.assigned_reviewer_id != user.pk:
         raise TransitionError("Only the assigned reviewer can act.", 403)
+    if action == "reject" and user.role == Role.REVIEWER and user.department == Department.FINCON:
+        raise TransitionError("FinCon reviewers can only return expenses, not reject them.", 403)
     if action != "submit" and user.role == Role.REVIEWER:
         if prior_status == ExpenseStatus.IN_REVIEW and (not user.department or user.department != expense.department):
             raise TransitionError("You can only review expenses in your assigned department.", 403)

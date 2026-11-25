@@ -74,15 +74,15 @@ export function DashboardPage() {
             <Spinner className="h-8 w-8"/>
           </div>) : countsError ? (<div className="p-5">
             <ErrorState message={errorMessage(countsError.error)} onRetry={() => countResults.forEach((q) => q.refetch())}/>
-          </div>) : (<div className="grid grid-cols-2 divide-x divide-y divide-[var(--color-line)] sm:grid-cols-4 lg:grid-cols-7">
-            {ALL_STATUSES.map((status, index) => (<div key={status} className="bg-white px-4 py-4">
-                <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${STATUS_ACCENT[status] ?? "bg-black/20"}`}/>
-                  <span className="text-[11px] font-bold uppercase tracking-normal text-black/55">
+          </div>) : (<div className="grid grid-cols-2 divide-x divide-y divide-[var(--color-line)] sm:grid-cols-4 lg:grid-cols-8">
+            {ALL_STATUSES.map((status, index) => (<div key={status} className="flex flex-col justify-between bg-white px-3 py-3.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_ACCENT[status] ?? "bg-black/20"}`}/>
+                  <span className="truncate text-[10px] font-bold uppercase tracking-normal text-black/55" title={STATUS_LABELS[status]}>
                     {STATUS_LABELS[status]}
                   </span>
                 </div>
-                <p className="font-display mt-2 text-[28px] font-extrabold leading-none tracking-normal text-[var(--color-ink)]">
+                <p className="font-display mt-2 text-[26px] font-extrabold leading-none tracking-normal text-[var(--color-ink)]">
                   {countResults[index].data?.count ?? 0}
                 </p>
               </div>))}

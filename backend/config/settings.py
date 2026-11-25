@@ -173,7 +173,7 @@ if EMAIL_MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
     MAILERS["default"]["OPTIONS"] = smtp_options.copy()
     MAILERS["transactional"]["OPTIONS"] = smtp_options.copy()
 
-FRONTEND_URL = config("FRONTEND_URL", default="http://127.0.0.1:5174")
+FRONTEND_URL = config("FRONTEND_URL", default="http://10.10.5.133:3005")
 EMAIL_TEST_MODE = config("EMAIL_TEST_MODE", default=False, cast=bool)
 # Personal mailbox routes are retired. Retain their tables for migration/data
 # compatibility, but do not expose them through the application.

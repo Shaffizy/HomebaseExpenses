@@ -80,6 +80,8 @@ def notify_next_role(expense):
         logger.error("Invalid FinCon reviewer routing for expense %s", expense.pk)
         return
     stage = "FinCon review" if in_fincon_review else ("review" if in_dept_review else "approval")
+    has_wht = bool(expense.wht_classification)
+    net_val = expense.total - (expense.wht_amount or 0)
     context = {
         "number": expense.expense_number,
         "requester": requester.get_full_name() or requester.username,
@@ -89,6 +91,11 @@ def notify_next_role(expense):
         "department": expense.department,
         "branch": expense.branch,
         "total": f"{expense.total:,.2f}",
+        "has_wht": has_wht,
+        "wht_classification": expense.get_wht_classification_display() if has_wht else "",
+        "wht_rate": f"{expense.wht_rate:.2f}" if has_wht else "",
+        "wht_amount": f"{expense.wht_amount:,.2f}" if has_wht else "",
+        "net_total": f"{net_val:,.2f}",
         "url": public_expense_url(expense),
         "test_mode": settings.EMAIL_TEST_MODE,
     }
