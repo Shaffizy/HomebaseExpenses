@@ -2,7 +2,7 @@
 
 import logging
 import ipaddress
-from email.mime.image import MIMEImage
+from email.message import MIMEPart
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -38,10 +38,16 @@ def _attach_company_logo(message: EmailMultiAlternatives) -> bool:
     data = _logo_bytes()
     if not data:
         return False
-    image = MIMEImage(data, _subtype="png")
-    image.add_header("Content-ID", "<homebase-logo>")
-    image.add_header("Content-Disposition", "inline", filename="homebase-logo.png")
-    message.attach(image)
+    part = MIMEPart()
+    part.set_content(
+        data,
+        maintype="image",
+        subtype="png",
+        disposition="inline",
+        filename="homebase-logo.png",
+        cid="<homebase-logo>",
+    )
+    message.attach(part)
     return True
 
 
@@ -155,7 +161,6 @@ def notify_next_role(expense):
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[address],
             )
-            message.mixed_subtype = "related"
             message.attach_alternative(
                 html, "text/html")
             _attach_company_logo(message)
