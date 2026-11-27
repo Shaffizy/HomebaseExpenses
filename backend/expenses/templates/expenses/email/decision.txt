@@ -1,7 +1,7 @@
 {% if test_mode %}Homebase expense workflow - TEST update{% else %}Homebase Mortgage Bank - Expense Update{% endif %}
 ============================================================
 
-Expense {{ number }} has been {{ status|lower }}.
+Your expense ID: {{ number }} has been {{ status|lower }}.
 
 EXPENSE SUMMARY
 ------------------------------------------------------------

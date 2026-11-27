@@ -32,6 +32,10 @@ def test_submission_sends_two_private_messages(ticket, django_capture_on_commit_
     assert mail.outbox[1].to == ["reviewer@example.test"]
     assert "submitted successfully" in mail.outbox[0].subject
     assert "requires your review" in mail.outbox[1].subject
+    assert "Your expense ID: EXP-MAIL" in mail.outbox[0].body
+    assert "submitted expense ID: EXP-MAIL" in mail.outbox[1].body
+    assert "cid:homebase-logo" in mail.outbox[0].alternatives[0].content
+    assert len(mail.outbox[0].attachments) == 1
     assert "NGN 20.00" in mail.outbox[0].body
     assert "&lt;script&gt;" in mail.outbox[0].alternatives[0].content
     assert "<script>" not in mail.outbox[0].alternatives[0].content

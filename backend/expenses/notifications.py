@@ -2,6 +2,9 @@
 
 import logging
 import ipaddress
+from email.mime.image import MIMEImage
+from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -14,6 +17,32 @@ from accounts.models import Department, Role
 from .models import ExpenseStatus
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _logo_bytes() -> bytes:
+    candidates = [
+        Path(settings.BASE_DIR).parent / "frontend" / "public" / "homebase-logo.png",
+        Path(settings.BASE_DIR) / "expenses" / "static" / "expenses" / "homebase-logo.png",
+    ]
+    for path in candidates:
+        if path.is_file():
+            try:
+                return path.read_bytes()
+            except OSError:
+                continue
+    return b""
+
+
+def _attach_company_logo(message: EmailMultiAlternatives) -> bool:
+    data = _logo_bytes()
+    if not data:
+        return False
+    image = MIMEImage(data, _subtype="png")
+    image.add_header("Content-ID", "<homebase-logo>")
+    image.add_header("Content-Disposition", "inline", filename="homebase-logo.png")
+    message.attach(image)
+    return True
 
 
 def public_expense_url(expense):
@@ -97,6 +126,7 @@ def notify_next_role(expense):
         "wht_amount": f"{expense.wht_amount:,.2f}" if has_wht else "",
         "net_total": f"{net_val:,.2f}",
         "url": public_expense_url(expense),
+        "has_logo": bool(_logo_bytes()),
         "test_mode": settings.EMAIL_TEST_MODE,
     }
     # Separate messages keep recipients private and allow one delivery to fail
@@ -125,8 +155,10 @@ def notify_next_role(expense):
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[address],
             )
+            message.mixed_subtype = "related"
             message.attach_alternative(
                 html, "text/html")
+            _attach_company_logo(message)
             message.send(using="transactional")
         except Exception:
             # The expense is already committed; never imply that submission

@@ -14,9 +14,15 @@
           </tr>
           <tr>
             <td style="padding:20px 20px 16px 20px;border-bottom:1px solid #e3e5e8;">
-              <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#e6171d;margin-bottom:4px;">
-                {% if test_mode %}Homebase Expense Workflow &middot; TEST{% else %}Homebase Mortgage Bank Ltd{% endif %}
-              </div>
+              {% if has_logo %}
+                <div style="margin-bottom:10px;">
+                  <img src="cid:homebase-logo" alt="Homebase Mortgage Bank" width="150" style="display:block;width:150px;max-width:100%;height:auto;border:0;" />
+                </div>
+              {% else %}
+                <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#e6171d;margin-bottom:4px;">
+                  {% if test_mode %}Homebase Expense Workflow &middot; TEST{% else %}Homebase Mortgage Bank Ltd{% endif %}
+                </div>
+              {% endif %}
               <h2 style="margin:0;font-size:19px;font-weight:800;color:#1b1b1b;line-height:1.3;">
                 Expense {{ status }}
               </h2>
@@ -25,7 +31,7 @@
           <tr>
             <td style="padding:20px;">
               <p style="margin:0 0 18px 0;font-size:14px;color:#1b1b1b;">
-                Expense <strong>{{ number }}</strong> has been <strong>{{ status|lower }}</strong>.
+                Your expense ID: <strong>{{ number }}</strong> has been <strong>{{ status|lower }}</strong>.
               </p>
 
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:4px 16px;margin-bottom:20px;">

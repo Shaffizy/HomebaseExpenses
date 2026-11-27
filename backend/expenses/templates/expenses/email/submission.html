@@ -14,9 +14,15 @@
           </tr>
           <tr>
             <td style="padding:20px 20px 16px 20px;border-bottom:1px solid #e3e5e8;">
-              <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#e6171d;margin-bottom:4px;">
-                {% if test_mode %}Homebase Expense Workflow &middot; TEST{% else %}Homebase Mortgage Bank Ltd{% endif %}
-              </div>
+              {% if has_logo %}
+                <div style="margin-bottom:10px;">
+                  <img src="cid:homebase-logo" alt="Homebase Mortgage Bank" width="150" style="display:block;width:150px;max-width:100%;height:auto;border:0;" />
+                </div>
+              {% else %}
+                <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#e6171d;margin-bottom:4px;">
+                  {% if test_mode %}Homebase Expense Workflow &middot; TEST{% else %}Homebase Mortgage Bank Ltd{% endif %}
+                </div>
+              {% endif %}
               <h2 style="margin:0;font-size:19px;font-weight:800;color:#1b1b1b;line-height:1.3;">
                 {% if confirmation %}Expense Submitted{% else %}Action Required: Expense {{ stage|capfirst }}{% endif %}
               </h2>
@@ -26,14 +32,14 @@
             <td style="padding:20px;">
               {% if confirmation %}
                 <p style="margin:0 0 8px 0;font-size:14px;color:#1b1b1b;">
-                  Your expense <strong>{{ number }}</strong> was submitted successfully.
+                  Your expense ID: <strong>{{ number }}</strong> was submitted successfully.
                 </p>
                 <p style="margin:0 0 18px 0;font-size:14px;color:#4b5563;">
                   It has been sent to <strong>{{ approver }}</strong> for {{ stage }}.
                 </p>
               {% else %}
                 <p style="margin:0 0 18px 0;font-size:14px;color:#1b1b1b;">
-                  <strong>{{ requester }}</strong> submitted expense <strong>{{ number }}</strong> for your {{ stage }}.
+                  <strong>{{ requester }}</strong> submitted expense ID: <strong>{{ number }}</strong> for your {{ stage }}.
                 </p>
               {% endif %}
 

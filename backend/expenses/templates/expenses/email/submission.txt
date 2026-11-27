@@ -1,8 +1,8 @@
 {% if test_mode %}Homebase expense workflow - TEST notification{% else %}Homebase Mortgage Bank - Expense Notification{% endif %}
 ============================================================
 
-{% if confirmation %}Your expense {{ number }} was submitted successfully.
-It has been sent to {{ approver }} for {{ stage }}.{% else %}{{ requester }} submitted expense {{ number }} for your {{ stage }}.{% endif %}
+{% if confirmation %}Your expense ID: {{ number }} was submitted successfully.
+It has been sent to {{ approver }} for {{ stage }}.{% else %}{{ requester }} submitted expense ID: {{ number }} for your {{ stage }}.{% endif %}
 
 EXPENSE SUMMARY
 ------------------------------------------------------------
